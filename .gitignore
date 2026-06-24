@@ -1,0 +1,17 @@
+# Build outputs
+bin/
+.task/
+
+# Frontend
+frontend/dist/
+frontend/node_modules/
+
+# Build artifacts
+build/linux/appimage/build/
+build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
+
+# macOS
+.DS_Store
+
+# IDE/Editor
+.kiro/
