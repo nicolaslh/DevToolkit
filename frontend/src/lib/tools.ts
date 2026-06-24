@@ -1,4 +1,5 @@
 import type { Component } from "svelte";
+import Json from "./tools/Json.svelte";
 import Encoding from "./tools/Encoding.svelte";
 import Crypto from "./tools/Crypto.svelte";
 import Jwt from "./tools/Jwt.svelte";
@@ -26,6 +27,14 @@ export interface ToolMeta {
 
 // MVP tool registry. Categories mirror the requirements document.
 export const tools: ToolMeta[] = [
+  {
+    id: "json",
+    name: "JSON 在线解析",
+    description: "JSON 校验、格式化、压缩、转义与树形视图",
+    category: "JSON 工具",
+    icon: "🧩",
+    component: Json,
+  },
   {
     id: "encoding",
     name: "编码转码",
