@@ -15,6 +15,7 @@ import Mock from "./tools/Mock.svelte";
 import Curl from "./tools/Curl.svelte";
 import Qr from "./tools/Qr.svelte";
 import Svg from "./tools/Svg.svelte";
+import Timestamp from "./tools/Timestamp.svelte";
 
 export interface ToolMeta {
   id: string;
@@ -106,6 +107,14 @@ export const tools: ToolMeta[] = [
     category: "常用工具",
     icon: "🎲",
     component: Mock,
+  },
+  {
+    id: "timestamp",
+    name: "时间戳转换",
+    description: "Unix 时间戳与普通时间互转，实时显示当前时间戳",
+    category: "常用工具",
+    icon: "⏱️",
+    component: Timestamp,
   },
   {
     id: "curl",
