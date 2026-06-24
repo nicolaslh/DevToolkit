@@ -67,7 +67,7 @@
   // Close any open menu when clicking outside the navbar.
   function handleWindowClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
-    if (!target.closest(".navbar")) {
+    if (!target.closest(".navbar") && !target.closest(".topbar")) {
       openCategory = null;
       searchOpen = false;
     }
@@ -92,54 +92,11 @@
 <svelte:window onclick={handleWindowClick} onkeydown={handleKeydown} />
 
 <div class="layout">
-  <header class="navbar">
+  <header class="topbar">
     <div class="brand">
       <span class="logo">🛠️</span>
       <span class="title">DevToolkit</span>
     </div>
-
-    <nav class="menus">
-      {#each grouped as g (g.name)}
-        <div
-          class="menu"
-          role="presentation"
-          onmouseenter={() => openMenu(g.name)}
-          onmouseleave={scheduleClose}
-        >
-          <button
-            class="menu-trigger"
-            class:active={g.name === activeCategory}
-            class:open={openCategory === g.name}
-            onclick={() => toggleCategory(g.name)}
-            aria-haspopup="true"
-            aria-expanded={openCategory === g.name}
-          >
-            <span class="menu-icon">{g.icon}</span>
-            <span class="menu-label">{g.name}</span>
-            <span class="caret" aria-hidden="true">▾</span>
-          </button>
-
-          {#if openCategory === g.name}
-            <div class="dropdown" role="menu">
-              {#each g.items as t (t.id)}
-                <button
-                  class="dropdown-item"
-                  class:selected={t.id === activeId}
-                  role="menuitem"
-                  onclick={() => selectTool(t.id)}
-                >
-                  <span class="dd-icon">{t.icon}</span>
-                  <span class="dd-text">
-                    <span class="dd-name">{t.name}</span>
-                    <span class="dd-desc">{t.description}</span>
-                  </span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {/each}
-    </nav>
 
     <div class="bar-right">
       <div class="search-wrap">
@@ -186,6 +143,51 @@
     </div>
   </header>
 
+  <header class="navbar">
+    <nav class="menus">
+      {#each grouped as g (g.name)}
+        <div
+          class="menu"
+          role="presentation"
+          onmouseenter={() => openMenu(g.name)}
+          onmouseleave={scheduleClose}
+        >
+          <button
+            class="menu-trigger"
+            class:active={g.name === activeCategory}
+            class:open={openCategory === g.name}
+            onclick={() => toggleCategory(g.name)}
+            aria-haspopup="true"
+            aria-expanded={openCategory === g.name}
+          >
+            <span class="menu-icon">{g.icon}</span>
+            <span class="menu-label">{g.name}</span>
+            <span class="caret" aria-hidden="true">▾</span>
+          </button>
+
+          {#if openCategory === g.name}
+            <div class="dropdown" role="menu">
+              {#each g.items as t (t.id)}
+                <button
+                  class="dropdown-item"
+                  class:selected={t.id === activeId}
+                  role="menuitem"
+                  onclick={() => selectTool(t.id)}
+                >
+                  <span class="dd-icon">{t.icon}</span>
+                  <span class="dd-text">
+                    <span class="dd-name">{t.name}</span>
+                    <span class="dd-desc">{t.description}</span>
+                  </span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/each}
+    </nav>
+  </header>
+
   <main class="content">
     <header class="content-head">
       <h2><span class="head-icon">{active.icon}</span>{active.name}</h2>
@@ -206,14 +208,15 @@
     height: 100vh;
   }
 
-  /* ---- Top navigation bar (json.cn style) ---- */
-  .navbar {
+  /* ---- Top brand bar ---- */
+  .topbar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 20px;
-    min-height: 54px;
+    min-height: 52px;
     padding: 6px 16px;
-    background: var(--color-surface);
+    background: var(--color-bg);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
   }
@@ -224,12 +227,24 @@
     flex-shrink: 0;
   }
   .brand .logo {
-    font-size: 18px;
+    font-size: 20px;
   }
   .brand .title {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 17px;
     white-space: nowrap;
+  }
+
+  /* ---- Category navigation bar (json.cn style, second row) ---- */
+  .navbar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    min-height: 48px;
+    padding: 6px 16px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
   }
 
   .menus {
