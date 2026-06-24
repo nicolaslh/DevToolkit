@@ -1,0 +1,136 @@
+/* DevToolkit — Flat Design system (design tokens + base styles) */
+
+:root {
+  /* Neutral palette */
+  --color-bg: #ffffff;
+  --color-surface: #f5f6f8;
+  --color-surface-2: #eceef1;
+  --color-border: #e3e6ea;
+  --color-text: #1f2329;
+  --color-text-weak: #6b7280;
+
+  /* Accent & semantic (flat solid, no gradients) */
+  --color-accent: #2f6feb;
+  --color-accent-weak: rgba(47, 111, 235, 0.12);
+  --color-success: #1f9d57;
+  --color-warning: #d98613;
+  --color-error: #d93f3f;
+  --color-error-weak: rgba(217, 63, 63, 0.12);
+
+  /* Shape & spacing */
+  --radius: 6px;
+  --space: 8px;
+
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, "Cascadia Code", monospace;
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #1a1c1f;
+  --color-surface: #242629;
+  --color-surface-2: #2d3034;
+  --color-border: #34373c;
+  --color-text: #e6e8eb;
+  --color-text-weak: #9aa0a6;
+  --color-accent: #4d86ff;
+  --color-accent-weak: rgba(77, 134, 255, 0.16);
+  --color-error-weak: rgba(217, 63, 63, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  height: 100vh;
+}
+
+/* Buttons — flat, no shadow */
+button {
+  font-family: inherit;
+  font-size: 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  cursor: pointer;
+  color: var(--color-text);
+  background: var(--color-surface-2);
+  transition: background-color 0.12s ease, opacity 0.12s ease;
+}
+button:hover {
+  background: var(--color-border);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+button.primary {
+  background: var(--color-accent);
+  color: #fff;
+}
+button.primary:hover {
+  opacity: 0.9;
+  background: var(--color-accent);
+}
+
+/* Inputs */
+input[type="text"],
+input[type="number"],
+input[type="password"],
+textarea,
+select {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-accent);
+}
+textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: var(--font-mono);
+}
+
+label {
+  color: var(--color-text-weak);
+  font-size: 13px;
+}
+
+/* Display-only label text not tied to a form control */
+.lbl {
+  color: var(--color-text-weak);
+  font-size: 13px;
+}
+
+/* Focus ring for keyboard users (accessibility) */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}

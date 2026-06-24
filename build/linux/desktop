@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=DevToolkit
+Comment=桌面级开发者工具箱
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/devtoolkit %u
+Terminal=false
+Type=Application
+Icon=devtoolkit
+Categories=Utility;
+StartupWMClass=devtoolkit
+
+ 
