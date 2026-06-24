@@ -3,7 +3,7 @@
 
   // Explicit category order + icon, mirroring json.cn's top category bar.
   const categories: { name: string; icon: string }[] = [
-    { name: "文本与代码", icon: "📝" },
+    { name: "常用工具", icon: "📝" },
     { name: "网络与接口", icon: "🌐" },
     { name: "系统运维", icon: "⚙️" },
     { name: "前端与视觉", icon: "🎨" },
