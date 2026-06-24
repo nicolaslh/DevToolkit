@@ -20,6 +20,7 @@ export interface ToolMeta {
   name: string;
   description: string;
   category: string;
+  icon: string;
   component: Component;
 }
 
@@ -30,6 +31,7 @@ export const tools: ToolMeta[] = [
     name: "编码转码",
     description: "Base64 / URL / Hex 编码与解码",
     category: "编码与加解密",
+    icon: "🔁",
     component: Encoding,
   },
   {
@@ -37,6 +39,7 @@ export const tools: ToolMeta[] = [
     name: "哈希与加解密",
     description: "MD5 / SHA 哈希与 AES 对称加解密",
     category: "编码与加解密",
+    icon: "🔐",
     component: Crypto,
   },
   {
@@ -44,6 +47,7 @@ export const tools: ToolMeta[] = [
     name: "JWT 解码",
     description: "解码 Header / Payload 并标注过期时间",
     category: "安全与身份验证",
+    icon: "🎫",
     component: Jwt,
   },
   {
@@ -51,6 +55,7 @@ export const tools: ToolMeta[] = [
     name: "强密码生成",
     description: "可配置字符集的强密码与 Bcrypt 哈希",
     category: "安全与身份验证",
+    icon: "🔑",
     component: Password,
   },
   {
@@ -58,6 +63,7 @@ export const tools: ToolMeta[] = [
     name: "URL 解析",
     description: "拆解 URL 与查询参数并可编辑重组",
     category: "网络与接口",
+    icon: "🔗",
     component: UrlParser,
   },
   {
@@ -65,6 +71,7 @@ export const tools: ToolMeta[] = [
     name: "颜色转换",
     description: "HEX / RGB / RGBA / HSL 实时互转",
     category: "前端与视觉",
+    icon: "🎨",
     component: Color,
   },
   {
@@ -72,6 +79,7 @@ export const tools: ToolMeta[] = [
     name: "文本比对",
     description: "文本 / 代码 / JSON 双栏差异高亮",
     category: "文本与代码",
+    icon: "📑",
     component: Diff,
   },
   {
@@ -79,6 +87,7 @@ export const tools: ToolMeta[] = [
     name: "正则测试",
     description: "正则匹配高亮与常用正则库",
     category: "文本与代码",
+    icon: "🔎",
     component: Regex,
   },
   {
@@ -86,6 +95,7 @@ export const tools: ToolMeta[] = [
     name: "Mock 数据",
     description: "批量生成姓名 / 地址 / 手机号 / 邮箱 / 银行卡 / Lorem",
     category: "文本与代码",
+    icon: "🎲",
     component: Mock,
   },
   {
@@ -93,6 +103,7 @@ export const tools: ToolMeta[] = [
     name: "cURL 转换",
     description: "cURL 命令转 Python / JS / Go / Java 代码",
     category: "网络与接口",
+    icon: "📡",
     component: Curl,
   },
   {
@@ -100,6 +111,7 @@ export const tools: ToolMeta[] = [
     name: "Cron 表达式",
     description: "可视化生成、解析与预测执行时间",
     category: "系统运维",
+    icon: "⏰",
     component: Cron,
   },
   {
@@ -107,6 +119,7 @@ export const tools: ToolMeta[] = [
     name: "权限计算器",
     description: "数字与符号 Linux 权限实时互转",
     category: "系统运维",
+    icon: "🛡️",
     component: Chmod,
   },
   {
@@ -114,6 +127,7 @@ export const tools: ToolMeta[] = [
     name: "环境变量 PATH",
     description: "PATH 拆分、去重与比较",
     category: "系统运维",
+    icon: "🧭",
     component: EnvPath,
   },
   {
@@ -121,6 +135,7 @@ export const tools: ToolMeta[] = [
     name: "二维码",
     description: "文本生成二维码与图片解码",
     category: "前端与视觉",
+    icon: "🔲",
     component: Qr,
   },
   {
@@ -128,6 +143,7 @@ export const tools: ToolMeta[] = [
     name: "SVG 优化",
     description: "清理压缩 SVG 并实时预览",
     category: "前端与视觉",
+    icon: "🖼️",
     component: Svg,
   },
 ];
