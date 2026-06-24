@@ -2,9 +2,9 @@
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**面向开发者与 IT 专业人员的桌面级"瑞士军刀"工具箱**
+**轻量级、离线可用（优先保护隐私）的复合型辅助工具类软件**
 
-DevToolkit 是一款桌面应用，整合了开发者和 IT 专业人员日常工作中的高频工具，涵盖文本处理、网络调试、系统运维、前端开发、安全验证等多个领域。所有工具默认本地执行，保护数据隐私。
+DevToolkit 是一款桌面应用，整合了PC日常工作中的高频工具，涵盖文本处理、网络调试、系统运维、前端开发、安全验证等多个领域。所有工具默认本地执行，保护数据隐私。
 
 ## 功能特性
 
@@ -163,10 +163,6 @@ npm install       # 安装依赖
 npm run dev       # 启动 Vite 开发服务器
 npm run build     # 构建生产版本
 ```
-
-## 文档
-
-详细需求规格请参阅 [.kiro/specs/dev-toolkit/requirements.md](.kiro/specs/dev-toolkit/requirements.md)
 
 ## 许可证
 
