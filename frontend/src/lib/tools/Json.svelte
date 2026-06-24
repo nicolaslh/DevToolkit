@@ -3,13 +3,7 @@
   import ErrorBar from "../components/ErrorBar.svelte";
   import JsonTree from "../components/JsonTree.svelte";
 
-  let input = $state(`{
-  "name": "DevToolkit",
-  "version": 3,
-  "offline": true,
-  "tags": ["json", "format", "parse"],
-  "author": { "name": "nic", "url": "https://github.com" }
-}`);
+  let input = $state("");
   let error = $state("");
   let indent = $state(2);
   let view = $state<"tree" | "text">("tree");

@@ -31,7 +31,7 @@ export const tools: ToolMeta[] = [
     id: "json",
     name: "JSON 在线解析",
     description: "JSON 校验、格式化、压缩、转义与树形视图",
-    category: "JSON 工具",
+    category: "编码与加解密",
     icon: "🧩",
     component: Json,
   },
