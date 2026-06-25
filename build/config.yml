@@ -5,16 +5,14 @@ version: '3'
 
 # This information is used to generate the build assets.
 info:
-  companyName: "My Company" # The name of the company
-  productName: "My Product" # The name of the application
-  productIdentifier: "com.mycompany.myproduct" # The unique product identifier
-  description: "A program that does X" # The application description
-  copyright: "(c) 2025, My Company" # Copyright text
-  comments: "Some Product Comments" # Comments
-  version: "0.0.1" # The application version
-  # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
-  #                               # Should match the name of your .icon file without the extension
-  #                               # If not set and Assets.car exists, defaults to "appicon"
+  companyName: "DevToolkit" # The name of the company
+  productName: "DevToolkit" # The name of the application
+  productIdentifier: "com.devtoolkit.app" # The unique product identifier
+  description: "轻量级、离线可用的复合型辅助工具类软件" # The application description
+  copyright: "(c) 2026, DevToolkit" # Copyright text
+  comments: "Developer Toolkit for Daily Work" # Comments
+  version: "1.0.0" # The application version
+  cfBundleIconName: "" # Leave empty to use icons.icns (Assets.car requires macOS 26+ to generate)
 
 # iOS build configuration (uncomment to customise iOS project generation)
 # Note: Keys under `ios` OVERRIDE values under `info` when set.

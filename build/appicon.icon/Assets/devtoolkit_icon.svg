@@ -1,0 +1,57 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background gradient: deep indigo to violet -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366F1;stop-opacity:1" />
+      <stop offset="55%" style="stop-color:#4F46E5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4338CA;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Subtle top sheen for depth -->
+    <linearGradient id="sheen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.18" />
+      <stop offset="45%" style="stop-color:#ffffff;stop-opacity:0" />
+    </linearGradient>
+
+    <!-- Wrench gradient -->
+    <linearGradient id="wrenchGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#C7D2FE;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded-square background (macOS friendly squircle) -->
+  <rect x="62" y="62" width="900" height="900" rx="220" fill="url(#bgGradient)"/>
+  <rect x="62" y="62" width="900" height="900" rx="220" fill="url(#sheen)"/>
+
+  <!-- Code brackets framing the wrench -->
+  <!-- Left bracket  < -->
+  <path d="M392 318 L250 512 L392 706"
+        fill="none" stroke="#A5B4FC" stroke-width="48"
+        stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+  <!-- Right bracket  > -->
+  <path d="M632 318 L774 512 L632 706"
+        fill="none" stroke="#A5B4FC" stroke-width="48"
+        stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+
+  <!-- Central wrench, rotated for a dynamic look -->
+  <g transform="rotate(45 512 512)">
+    <!-- Wrench shaft -->
+    <rect x="476" y="430" width="72" height="250" rx="36" fill="url(#wrenchGradient)"/>
+    <!-- Wrench open-end head -->
+    <path d="M512 300
+             a92 92 0 1 0 0 184
+             a92 92 0 1 0 0 -184
+             Z
+             M512 348
+             a44 44 0 1 1 0 88
+             a44 44 0 1 1 0 -88
+             Z"
+          fill="url(#wrenchGradient)" fill-rule="evenodd"/>
+    <!-- Notch cut into the wrench head -->
+    <rect x="486" y="290" width="52" height="70" rx="10" fill="url(#bgGradient)"/>
+  </g>
+
+  <!-- Accent dot under the wrench (the "tool tip") -->
+  <circle cx="512" cy="700" r="30" fill="#FBBF24"/>
+</svg>

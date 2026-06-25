@@ -16,6 +16,7 @@ import Curl from "./tools/Curl.svelte";
 import Qr from "./tools/Qr.svelte";
 import Svg from "./tools/Svg.svelte";
 import Timestamp from "./tools/Timestamp.svelte";
+import ImageResize from "./tools/ImageResize.svelte";
 
 export interface ToolMeta {
   id: string;
@@ -163,5 +164,13 @@ export const tools: ToolMeta[] = [
     category: "前端与视觉",
     icon: "🖼️",
     component: Svg,
+  },
+  {
+    id: "imageresize",
+    name: "图片尺寸调整",
+    description: "调整图片尺寸，支持预设规格与自定义宽高",
+    category: "前端与视觉",
+    icon: "📐",
+    component: ImageResize,
   },
 ];
