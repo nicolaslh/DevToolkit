@@ -1,6 +1,7 @@
 # Build outputs
 bin/
 .task/
+.vscode/
 
 # Frontend
 frontend/dist/
