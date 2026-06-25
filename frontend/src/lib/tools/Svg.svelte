@@ -5,12 +5,14 @@
   import ErrorBar from "../components/ErrorBar.svelte";
 
   let input = $state("");
+  let url = $state("");
   let optimized = $state("");
   let beforeBytes = $state(0);
   let afterBytes = $state(0);
   let reductionPct = $state("");
   let error = $state("");
   let ran = $state(false);
+  let loading = $state(false);
 
   // Live preview source: optimized result if available, else raw input.
   // Basic sanitization before rendering via {@html} to avoid script execution
@@ -20,9 +22,41 @@
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
       .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
-      .replace(/(href|xlink:href)\s*=\s*("|')\s*javascript:[^"']*\2/gi, "");
+      .replace(/(href|xlink:href)\s*=\s*("|\')\s*javascript:[^"']*\2/gi, "");
   }
   let previewSrc = $derived(sanitizeSvg(optimized || input));
+
+  async function fetchFromUrl() {
+    if (!url.trim()) {
+      error = "请输入 SVG 网络地址";
+      return;
+    }
+
+    loading = true;
+    error = "";
+    ran = false;
+    optimized = "";
+
+    try {
+      const response = await fetch(url.trim());
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const contentType = response.headers.get("content-type") || "";
+      const text = await response.text();
+
+      // 验证是否为 SVG 内容
+      if (!contentType.includes("svg") && !text.trim().match(/<svg[\s>]/i)) {
+        throw new Error("返回的内容不是 SVG");
+      }
+
+      input = text;
+    } catch (e) {
+      error = `加载失败: ${errMsg(e)}`;
+    } finally {
+      loading = false;
+    }
+  }
 
   async function optimize() {
     error = "";
@@ -43,8 +77,22 @@
 <div class="tool">
   <div class="cols">
     <div class="left">
+      <label for="svg-url">网络地址</label>
+      <div class="url-row">
+        <input
+          id="svg-url"
+          type="url"
+          bind:value={url}
+          placeholder="输入 SVG 文件的 URL..."
+          disabled={loading}
+        />
+        <button class="secondary" onclick={fetchFromUrl} disabled={loading}>
+          {loading ? "加载中..." : "加载"}
+        </button>
+      </div>
+
       <label for="svg-in">SVG 代码</label>
-      <textarea id="svg-in" bind:value={input} placeholder="粘贴 SVG 代码…"></textarea>
+      <textarea id="svg-in" bind:value={input} placeholder="粘贴 SVG 代码或从网络地址加载…"></textarea>
       <button class="primary" onclick={optimize}>优化</button>
       <ErrorBar message={error} />
       {#if ran && !error}
@@ -86,6 +134,13 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+  .url-row {
+    display: flex;
+    gap: 8px;
+  }
+  .url-row input {
+    flex: 1;
   }
   .stats {
     background: var(--color-surface);
