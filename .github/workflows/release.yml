@@ -18,10 +18,19 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # macOS：构建 universal (arm64 + amd64) .app，打包为 .dmg 与 .zip
+  # macOS：分别构建 Intel (amd64) 与 Apple Silicon (arm64) 的 .app，
+  # 各自打包为 .dmg 与 .zip
   # ---------------------------------------------------------------------------
   macos:
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            label: apple-silicon
+          - arch: amd64
+            label: intel
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,26 +62,26 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" build/darwin/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" build/darwin/Info.plist
 
-      - name: Package universal .app bundle
-        run: task darwin:package:universal
+      - name: Package .app bundle (${{ matrix.arch }})
+        run: task darwin:package ARCH=${{ matrix.arch }}
 
       - name: Create .dmg and .zip
         run: |
           cd bin
           # 压缩为 zip
-          ditto -c -k --keepParent "DevToolkit.app" "DevToolkit-macos-universal.zip"
+          ditto -c -k --keepParent "DevToolkit.app" "DevToolkit-macos-${{ matrix.label }}.zip"
           # 生成 dmg
           hdiutil create -volname "DevToolkit" \
             -srcfolder "DevToolkit.app" \
             -ov -format UDZO \
-            "DevToolkit-macos-universal.dmg"
+            "DevToolkit-macos-${{ matrix.label }}.dmg"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            bin/DevToolkit-macos-universal.dmg
-            bin/DevToolkit-macos-universal.zip
+            bin/DevToolkit-macos-${{ matrix.label }}.dmg
+            bin/DevToolkit-macos-${{ matrix.label }}.zip
 
   # ---------------------------------------------------------------------------
   # Windows：构建并生成 NSIS 安装包 (.exe)
