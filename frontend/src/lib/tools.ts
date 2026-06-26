@@ -13,6 +13,7 @@ import Chmod from "./tools/Chmod.svelte";
 import EnvPath from "./tools/EnvPath.svelte";
 import Mock from "./tools/Mock.svelte";
 import Curl from "./tools/Curl.svelte";
+import Dns from "./tools/Dns.svelte";
 import Qr from "./tools/Qr.svelte";
 import Svg from "./tools/Svg.svelte";
 import Timestamp from "./tools/Timestamp.svelte";
@@ -124,6 +125,14 @@ export const tools: ToolMeta[] = [
     category: "网络与接口",
     icon: "📡",
     component: Curl,
+  },
+  {
+    id: "dns",
+    name: "DNS 解析",
+    description: "查询域名的 A / AAAA / CNAME / MX / NS / TXT 记录",
+    category: "网络与接口",
+    icon: "🌐",
+    component: Dns,
   },
   {
     id: "cron",
