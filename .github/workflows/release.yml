@@ -11,6 +11,9 @@ permissions:
   contents: write
 
 env:
+  # 应用名称（需与项目 Taskfile.yml 中的 APP_NAME 一致）
+  # 复用此 workflow 到其它项目时，只改这里即可
+  APP_NAME: "DevToolkit"
   GO_VERSION: "1.25"
   NODE_VERSION: "20"
   # 与 go.mod 中的 Wails 版本保持一致
@@ -69,19 +72,19 @@ jobs:
         run: |
           cd bin
           # 压缩为 zip
-          ditto -c -k --keepParent "DevToolkit.app" "DevToolkit-macos-${{ matrix.label }}.zip"
+          ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}-macos-${{ matrix.label }}.zip"
           # 生成 dmg
-          hdiutil create -volname "DevToolkit" \
-            -srcfolder "DevToolkit.app" \
+          hdiutil create -volname "${APP_NAME}" \
+            -srcfolder "${APP_NAME}.app" \
             -ov -format UDZO \
-            "DevToolkit-macos-${{ matrix.label }}.dmg"
+            "${APP_NAME}-macos-${{ matrix.label }}.dmg"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            bin/DevToolkit-macos-${{ matrix.label }}.dmg
-            bin/DevToolkit-macos-${{ matrix.label }}.zip
+            bin/${{ env.APP_NAME }}-macos-${{ matrix.label }}.dmg
+            bin/${{ env.APP_NAME }}-macos-${{ matrix.label }}.zip
 
   # ---------------------------------------------------------------------------
   # Windows：构建并生成 NSIS 安装包 (.exe)
