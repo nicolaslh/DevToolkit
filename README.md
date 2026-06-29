@@ -10,39 +10,45 @@ DevToolkit 是一款桌面应用，将日常开发中高频使用的工具集成
 
 ## 功能特性
 
-### 一、文本与代码处理
+### 一、常用工具
 
-- **Diff Viewer** - 文本 / 代码 / JSON 双栏比对，支持行级与字符级差异高亮
-- **Regex Tester** - 正则表达式测试器，内置常用正则库（邮箱、手机号、身份证号、IPv4/IPv6）
-- **Mock Generator** - 批量生成随机模拟数据（姓名、地址、手机号、邮箱、银行卡号、Lorem Ipsum）
+- **JSON 在线解析** - JSON 校验、格式化、压缩、转义与树形视图
+- **文本比对** - 文本 / 代码 / JSON 双栏比对，支持行级与字符级差异高亮
+- **正则测试** - 正则表达式测试器，内置常用正则库（邮箱、手机号、身份证号、IPv4/IPv6）
+- **Mock 数据** - 批量生成随机模拟数据（姓名、地址、手机号、邮箱、银行卡号、Lorem Ipsum）
+- **时间戳转换** - Unix 时间戳与普通时间互转，实时显示当前时间戳
 
 ### 二、网络与接口
 
-- **URL Parser** - URL 拆解解析，查询参数可视化编辑
-- **cURL Converter** - 将 cURL 命令转换为 Python / JavaScript / Go / Java 请求代码
+- **URL 解析** - URL 拆解解析，查询参数可视化编辑与重组
+- **cURL 转换** - 将 cURL 命令转换为 Python / JavaScript / Go / Java 请求代码
+- **DNS 解析** - 查询域名的 A / AAAA / CNAME / MX / NS / TXT 记录
 
 ### 三、系统运维
 
-- **Cron Tool** - Cron 表达式解析与生成，可视化配置定时任务
-- **Chmod Calculator** - Linux 权限计算器，数字权限与符号权限实时互转
-- **Env/Path Viewer** - 环境变量查看、去重与比较
+- **Cron 表达式** - Cron 表达式解析与生成，可视化配置并预测执行时间
+- **权限计算器** - Linux 权限计算器，数字权限与符号权限实时互转
+- **环境变量 PATH** - PATH 拆分、去重与比较
 
 ### 四、前端与视觉
 
-- **Color Converter** - 颜色值转换（HEX / RGB / RGBA / HSL）
-- **SVG Optimizer** - SVG 优化与实时预览
-- **QR Code Tool** - 二维码生成与解码
+- **颜色转换** - 颜色值转换（HEX / RGB / RGBA / HSL）
+- **屏幕取色器** - 鼠标指向屏幕任意位置实时取色，输出 HEX / RGB / RGBA / HSL
+- **二维码** - 二维码生成与图片解码
+- **SVG 优化** - SVG 清理压缩与实时预览
+- **图片尺寸调整** - 调整图片尺寸，支持预设规格与自定义宽高
 
 ### 五、安全与身份验证
 
-- **JWT Decoder** - JWT 解码与格式化，自动识别过期状态
-- **Password Generator** - 强密码生成器，支持批量生成与 Bcrypt 哈希
-- **File Password Cracker** - ZIP / PDF / Word / Excel / PPT 加密文件口令找回，支持暴力枚举与字典匹配，实时显示进度（仅限本人拥有或已授权的文件，全程本地运算）
+- **JWT 解码** - JWT 解码与格式化，自动识别过期状态
+- **强密码生成** - 强密码生成器，支持批量生成与 Bcrypt 哈希
+- **文件密码破解** - ZIP / PDF / Word / Excel / PPT 加密文件口令找回，支持暴力枚举与字典匹配，实时显示进度（仅限本人拥有或已授权的文件，全程本地运算）
 
 ### 六、编码与加解密
 
-- **Encoding Tool** - Base64 / URL / Hex 编码互转
-- **Crypto Tool** - MD5 / SHA-1 / SHA-256 哈希计算，AES 对称加解密
+- **编码转码** - Base64 / URL / Hex 编码互转
+- **Unicode 编码** - ASCII / 中文 与 Unicode (\uXXXX) 互转
+- **哈希与加解密** - MD5 / SHA 哈希计算，AES 对称加解密
 
 ## 技术栈
 
@@ -96,21 +102,23 @@ DevToolkit/
 ├── services_*.go           # 后端服务层
 ├── internal/pkg/           # 核心功能包
 │   ├── chmod/              # Linux 权限计算
+│   ├── codecx/             # 编码转换
 │   ├── colorx/             # 颜色转换
-│   ├── cronx/              # Cron 解析
-│   ├── curlconv/           # cURL 转换
 │   ├── crackx/             # 加密文件口令找回（ZIP/PDF/Office）
+│   ├── cronx/              # Cron 解析
+│   ├── cryptox/            # 哈希与加解密
+│   ├── curlconv/           # cURL 转换
 │   ├── differ/             # 文本比对
+│   ├── dnsx/               # DNS 解析
 │   ├── jwtx/               # JWT 解码
 │   ├── mockgen/            # Mock 数据生成
 │   ├── pathx/              # PATH 变量处理
 │   ├── pwdgen/             # 密码生成
 │   ├── qrx/                # 二维码
 │   ├── regexx/             # 正则测试
+│   ├── screenpick/         # 屏幕取色
 │   ├── svgopt/             # SVG 优化
-│   ├── urlparse/           # URL 解析
-│   ├── codecx/             # 编码转换
-│   └── cryptox/            # 加解密
+│   └── urlparse/           # URL 解析
 ├── frontend/               # 前端代码
 │   ├── src/                # Svelte 组件
 │   ├── bindings/           # TypeScript 类型绑定
