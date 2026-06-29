@@ -1,6 +1,7 @@
 import type { Component } from "svelte";
 import Json from "./tools/Json.svelte";
 import Encoding from "./tools/Encoding.svelte";
+import Unicode from "./tools/Unicode.svelte";
 import Crypto from "./tools/Crypto.svelte";
 import Jwt from "./tools/Jwt.svelte";
 import Password from "./tools/Password.svelte";
@@ -46,6 +47,14 @@ export const tools: ToolMeta[] = [
     category: "编码与加解密",
     icon: "🔁",
     component: Encoding,
+  },
+  {
+    id: "unicode",
+    name: "Unicode 编码",
+    description: "ASCII / 中文 与 Unicode (\\uXXXX) 互转",
+    category: "编码与加解密",
+    icon: "🔤",
+    component: Unicode,
   },
   {
     id: "crypto",

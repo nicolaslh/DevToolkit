@@ -12,7 +12,7 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 /**
- * Decode decodes input using the given kind ("base64" | "url" | "hex").
+ * Decode decodes input using the given kind ("base64" | "url" | "hex" | "unicode").
  */
 export function Decode(input: string, kind: string): $CancellablePromise<string> {
     return $Call.ByID(559761613, input, kind);
@@ -26,7 +26,7 @@ export function Decrypt(ciphertext: string, key: string): $CancellablePromise<st
 }
 
 /**
- * Encode encodes input using the given kind ("base64" | "url" | "hex").
+ * Encode encodes input using the given kind ("base64" | "url" | "hex" | "unicode").
  */
 export function Encode(input: string, kind: string): $CancellablePromise<string> {
     return $Call.ByID(3030620649, input, kind);

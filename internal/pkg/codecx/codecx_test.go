@@ -37,7 +37,7 @@ func TestTooLarge(t *testing.T) {
 
 // Property 1: Decode(Encode(x)) == x for all inputs (R17.7).
 func TestRoundTripProperty(t *testing.T) {
-	for _, k := range []Kind{Base64, URL, Hex} {
+	for _, k := range []Kind{Base64, URL, Hex, Unicode} {
 		kind := k
 		f := func(s string) bool {
 			enc, err := Encode(s, kind)

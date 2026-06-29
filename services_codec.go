@@ -9,12 +9,12 @@ import (
 // encryption (R18) to the frontend. All processing is local.
 type CodecService struct{}
 
-// Encode encodes input using the given kind ("base64" | "url" | "hex").
+// Encode encodes input using the given kind ("base64" | "url" | "hex" | "unicode").
 func (s *CodecService) Encode(input string, kind string) (string, error) {
 	return codecx.Encode(input, codecx.Kind(kind))
 }
 
-// Decode decodes input using the given kind ("base64" | "url" | "hex").
+// Decode decodes input using the given kind ("base64" | "url" | "hex" | "unicode").
 func (s *CodecService) Decode(input string, kind string) (string, error) {
 	return codecx.Decode(input, codecx.Kind(kind))
 }
