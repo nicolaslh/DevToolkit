@@ -90,10 +90,11 @@ func persistCheckpoints(job *crackx.Job, fingerprint string) {
 	defer ticker.Stop()
 	for range ticker.C {
 		p := job.Snapshot()
+		offset := job.ResumeOffset()
 		if p.Done {
 			if p.Canceled {
 				_ = crackx.SaveCheckpoint(crackx.Checkpoint{
-					Fingerprint: fingerprint, Tried: p.Tried, Total: p.Total,
+					Fingerprint: fingerprint, Tried: offset, Total: p.Total,
 				})
 			} else {
 				crackx.DeleteCheckpoint(fingerprint)
@@ -101,7 +102,7 @@ func persistCheckpoints(job *crackx.Job, fingerprint string) {
 			return
 		}
 		_ = crackx.SaveCheckpoint(crackx.Checkpoint{
-			Fingerprint: fingerprint, Tried: p.Tried, Total: p.Total,
+			Fingerprint: fingerprint, Tried: offset, Total: p.Total,
 		})
 	}
 }

@@ -8,6 +8,7 @@ package crackx
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -130,12 +131,12 @@ func NewVerifier(format Format, filename string, data []byte) (Verifier, error) 
 
 // Job is a running or finished cracking task.
 type Job struct {
-	tried atomic.Int64
-	total int64
-	start time.Time
+	tried   atomic.Int64
+	total   int64
+	start   time.Time
+	current atomic.Pointer[string]
 
 	mu       sync.Mutex
-	current  string
 	found    bool
 	password string
 	done     bool
@@ -146,6 +147,13 @@ type Job struct {
 	cancelOnce sync.Once
 
 	resumedFrom int64
+
+	// Watermark bookkeeping: the largest contiguous prefix of dispatched
+	// candidates that has finished verifying. Used as the safe resume offset
+	// under parallel execution (completions can land out of order).
+	wmMu   sync.Mutex
+	wmNext int64
+	wmDone map[int64]bool
 }
 
 // Start launches the attack in a background goroutine and returns immediately.
@@ -159,6 +167,7 @@ func Start(v Verifier, opts Options, resumeFrom int64) *Job {
 		start:       time.Now(),
 		cancelCh:    make(chan struct{}),
 		resumedFrom: resumeFrom,
+		wmDone:      map[int64]bool{},
 	}
 	j.total = countSpace(opts)
 	j.tried.Store(resumeFrom)
@@ -182,6 +191,10 @@ func (j *Job) stopped() bool {
 
 // Snapshot returns the current progress.
 func (j *Job) Snapshot() Progress {
+	current := ""
+	if p := j.current.Load(); p != nil {
+		current = *p
+	}
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	elapsed := time.Since(j.start).Seconds()
@@ -203,7 +216,7 @@ func (j *Job) Snapshot() Progress {
 	return Progress{
 		Tried:       tried,
 		Total:       j.total,
-		Current:     j.current,
+		Current:     current,
 		Found:       j.found,
 		Password:    j.password,
 		Done:        j.done,
@@ -214,6 +227,34 @@ func (j *Job) Snapshot() Progress {
 		ETA:         eta,
 		ResumedFrom: j.resumedFrom,
 	}
+}
+
+// ResumeOffset returns the safe candidate offset to resume from: the previous
+// resume base plus the largest fully-completed contiguous prefix of this run.
+func (j *Job) ResumeOffset() int64 {
+	j.wmMu.Lock()
+	defer j.wmMu.Unlock()
+	return j.resumedFrom + j.wmNext
+}
+
+func (j *Job) setCurrent(pw string) {
+	j.current.Store(&pw)
+}
+
+// markDone records that the candidate with the given sequence number finished
+// verifying, advancing the contiguous-completion watermark.
+func (j *Job) markDone(seq int64) {
+	j.wmMu.Lock()
+	if seq == j.wmNext {
+		j.wmNext++
+		for j.wmDone[j.wmNext] {
+			delete(j.wmDone, j.wmNext)
+			j.wmNext++
+		}
+	} else {
+		j.wmDone[seq] = true
+	}
+	j.wmMu.Unlock()
 }
 
 func (j *Job) finish(found bool, password, errMsg string, canceled bool) {
@@ -227,39 +268,89 @@ func (j *Job) finish(found bool, password, errMsg string, canceled bool) {
 }
 
 func (j *Job) run(v Verifier, opts Options, resumeFrom int64) {
-	hit := func(pw string) bool {
-		j.mu.Lock()
-		j.current = pw
-		j.mu.Unlock()
-		j.tried.Add(1)
-		return v.Verify(pw)
+	// Fail fast on an empty brute-force charset.
+	if opts.Mode != ModeDict && len(opts.Charset.alphabet()) == 0 {
+		j.finish(false, "", "请至少选择一种字符集", false)
+		return
 	}
 
+	workers := runtime.NumCPU()
+	if workers < 1 {
+		workers = 1
+	}
+
+	type candidate struct {
+		seq int64
+		pw  string
+	}
+	ch := make(chan candidate, workers*4)
+
+	// Producer: emit candidates in deterministic order, numbered from 0, until
+	// the space is exhausted or the job is canceled.
+	go func() {
+		defer close(ch)
+		var seq int64
+		emit := func(pw string) bool {
+			select {
+			case ch <- candidate{seq: seq, pw: pw}:
+				seq++
+				return true
+			case <-j.cancelCh:
+				return false
+			}
+		}
+		if opts.Mode == ModeDict {
+			produceDict(opts, resumeFrom, emit)
+		} else {
+			produceBrute(opts, resumeFrom, emit)
+		}
+	}()
+
+	// Workers verify candidates concurrently. The first match cancels the rest.
 	var (
-		found bool
-		pw    string
+		foundOnce sync.Once
+		foundPW   string
+		found     atomic.Bool
+		wg        sync.WaitGroup
 	)
-	switch opts.Mode {
-	case ModeDict:
-		found, pw = j.runDict(opts, resumeFrom, hit)
-	default:
-		found, pw = j.runBrute(opts, resumeFrom, hit)
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for c := range ch {
+				if found.Load() || j.stopped() {
+					return
+				}
+				ok := v.Verify(c.pw)
+				j.tried.Add(1)
+				j.setCurrent(c.pw)
+				j.markDone(c.seq)
+				if ok {
+					foundOnce.Do(func() {
+						foundPW = c.pw
+						found.Store(true)
+					})
+					j.Cancel() // stop the producer and peer workers
+					return
+				}
+			}
+		}()
 	}
+	wg.Wait()
 
-	if j.stopped() && !found {
+	switch {
+	case found.Load():
+		j.finish(true, foundPW, "", false)
+	case j.stopped():
 		j.finish(false, "", "", true)
-		return
+	default:
+		j.finish(false, "", "已尝试全部候选口令，未找到匹配项", false)
 	}
-	if found {
-		j.finish(true, pw, "", false)
-		return
-	}
-	j.finish(false, "", "已尝试全部候选口令，未找到匹配项", false)
 }
 
-// runDict walks the wordlist line by line, skipping the first `skip` candidates
-// so an interrupted run can continue where it stopped.
-func (j *Job) runDict(opts Options, skip int64, hit func(string) bool) (bool, string) {
+// produceDict walks the wordlist line by line, skipping the first `skip`
+// candidates so an interrupted run can continue where it stopped.
+func produceDict(opts Options, skip int64, emit func(string) bool) {
 	var seen int64
 	for _, line := range strings.Split(opts.Wordlist, "\n") {
 		pw := strings.TrimRight(line, "\r")
@@ -270,31 +361,26 @@ func (j *Job) runDict(opts Options, skip int64, hit func(string) bool) (bool, st
 			seen++
 			continue
 		}
-		if j.stopped() {
-			return false, ""
-		}
-		if hit(pw) {
-			return true, pw
+		if !emit(pw) {
+			return
 		}
 	}
-	return false, ""
 }
 
-// runBrute enumerates every combination of the alphabet for each length in the
-// configured range, shortest first. When skip > 0 it jumps directly to the
+// produceBrute enumerates every combination of the alphabet for each length in
+// the configured range, shortest first. When skip > 0 it jumps directly to the
 // matching position so an interrupted run can resume.
-func (j *Job) runBrute(opts Options, skip int64, hit func(string) bool) (bool, string) {
+func produceBrute(opts Options, skip int64, emit func(string) bool) {
 	alphabet := []rune(opts.Charset.alphabet())
 	if len(alphabet) == 0 {
-		j.finish(false, "", "请至少选择一种字符集", false)
-		return false, ""
+		return
 	}
 	minLen, maxLen := normalizeLen(opts.MinLen, opts.MaxLen)
 
 	startLen, startIdx, ok := locate(skip, int64(len(alphabet)), minLen, maxLen)
 	if !ok {
 		// The skip offset is past the entire search space; nothing left to do.
-		return false, ""
+		return
 	}
 
 	for length := startLen; length <= maxLen; length++ {
@@ -304,14 +390,11 @@ func (j *Job) runBrute(opts Options, skip int64, hit func(string) bool) (bool, s
 		}
 		buf := make([]rune, length)
 		for {
-			if j.stopped() {
-				return false, ""
-			}
 			for i := 0; i < length; i++ {
 				buf[i] = alphabet[idx[i]]
 			}
-			if hit(string(buf)) {
-				return true, string(buf)
+			if !emit(string(buf)) {
+				return
 			}
 			// Increment the odometer (least-significant position first).
 			pos := length - 1
@@ -328,7 +411,6 @@ func (j *Job) runBrute(opts Options, skip int64, hit func(string) bool) (bool, s
 			}
 		}
 	}
-	return false, ""
 }
 
 // locate maps a linear candidate offset to the (length, odometer) position
