@@ -20,6 +20,7 @@ import Qr from "./tools/Qr.svelte";
 import Svg from "./tools/Svg.svelte";
 import Timestamp from "./tools/Timestamp.svelte";
 import ImageResize from "./tools/ImageResize.svelte";
+import Crack from "./tools/Crack.svelte";
 
 export interface ToolMeta {
   id: string;
@@ -79,6 +80,14 @@ export const tools: ToolMeta[] = [
     category: "安全与身份验证",
     icon: "🔑",
     component: Password,
+  },
+  {
+    id: "crack",
+    name: "文件密码破解",
+    description: "对 ZIP / PDF / Word / Excel 等加密文件进行口令找回，支持暴力枚举与字典匹配并实时显示进度",
+    category: "安全与身份验证",
+    icon: "🗝️",
+    component: Crack,
   },
   {
     id: "url",

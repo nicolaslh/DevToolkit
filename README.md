@@ -37,6 +37,7 @@ DevToolkit 是一款桌面应用，将日常开发中高频使用的工具集成
 
 - **JWT Decoder** - JWT 解码与格式化，自动识别过期状态
 - **Password Generator** - 强密码生成器，支持批量生成与 Bcrypt 哈希
+- **File Password Cracker** - ZIP / PDF / Word / Excel / PPT 加密文件口令找回，支持暴力枚举与字典匹配，实时显示进度（仅限本人拥有或已授权的文件，全程本地运算）
 
 ### 六、编码与加解密
 
@@ -98,6 +99,7 @@ DevToolkit/
 │   ├── colorx/             # 颜色转换
 │   ├── cronx/              # Cron 解析
 │   ├── curlconv/           # cURL 转换
+│   ├── crackx/             # 加密文件口令找回（ZIP/PDF/Office）
 │   ├── differ/             # 文本比对
 │   ├── jwtx/               # JWT 解码
 │   ├── mockgen/            # Mock 数据生成
