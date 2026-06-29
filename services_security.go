@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"sync"
+	"time"
 
 	"github.com/nic/devtoolkit/internal/pkg/apperr"
 	"github.com/nic/devtoolkit/internal/pkg/crackx"
@@ -36,13 +37,25 @@ func (s *SecurityService) BcryptHash(plain string) (string, error) {
 
 // StartCrack begins an offline password-recovery job over the supplied file
 // bytes and returns a job id used to poll progress. The attack runs in the
-// background so the UI stays responsive.
-func (s *SecurityService) StartCrack(data []byte, filename string, opts crackx.Options) (string, error) {
+// background so the UI stays responsive. When resume is true and a matching
+// checkpoint exists, the job continues from where a previous run stopped.
+func (s *SecurityService) StartCrack(data []byte, filename string, opts crackx.Options, resume bool) (string, error) {
 	verifier, err := crackx.NewVerifier(opts.Format, filename, data)
 	if err != nil {
 		return "", err
 	}
-	job := crackx.Start(verifier, opts)
+
+	fingerprint := crackx.Fingerprint(data, opts)
+	var resumeFrom int64
+	if resume {
+		if cp, ok := crackx.LoadCheckpoint(fingerprint); ok {
+			resumeFrom = cp.Tried
+		}
+	} else {
+		crackx.DeleteCheckpoint(fingerprint)
+	}
+
+	job := crackx.Start(verifier, opts, resumeFrom)
 
 	id, err := newJobID()
 	if err != nil {
@@ -54,7 +67,43 @@ func (s *SecurityService) StartCrack(data []byte, filename string, opts crackx.O
 	}
 	s.crackJobs[id] = job
 	s.crackMu.Unlock()
+
+	go persistCheckpoints(job, fingerprint)
 	return id, nil
+}
+
+// Resumable reports whether a saved checkpoint exists for the given file and
+// options, so the UI can offer to continue a previously interrupted run.
+func (s *SecurityService) Resumable(data []byte, filename string, opts crackx.Options) (crackx.ResumeInfo, error) {
+	fingerprint := crackx.Fingerprint(data, opts)
+	if cp, ok := crackx.LoadCheckpoint(fingerprint); ok && cp.Tried > 0 {
+		return crackx.ResumeInfo{Available: true, Tried: cp.Tried, Total: cp.Total}, nil
+	}
+	return crackx.ResumeInfo{}, nil
+}
+
+// persistCheckpoints periodically saves the job's progress while it runs. A
+// checkpoint is kept when the job is interrupted/canceled (so it can resume)
+// and removed once the password is found or the whole space is exhausted.
+func persistCheckpoints(job *crackx.Job, fingerprint string) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		p := job.Snapshot()
+		if p.Done {
+			if p.Canceled {
+				_ = crackx.SaveCheckpoint(crackx.Checkpoint{
+					Fingerprint: fingerprint, Tried: p.Tried, Total: p.Total,
+				})
+			} else {
+				crackx.DeleteCheckpoint(fingerprint)
+			}
+			return
+		}
+		_ = crackx.SaveCheckpoint(crackx.Checkpoint{
+			Fingerprint: fingerprint, Tried: p.Tried, Total: p.Total,
+		})
+	}
 }
 
 // CrackProgress returns the latest progress snapshot for a job.

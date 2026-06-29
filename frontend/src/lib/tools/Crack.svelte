@@ -34,6 +34,42 @@
   let error = $state("");
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  // --- resume state ---
+  let resume = $state(true); // continue a previous run when a checkpoint exists
+  let resumeTried = $state(0); // candidates already tried per the saved checkpoint
+  let resumeCheckTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function buildOpts() {
+    return {
+      format,
+      mode,
+      minLen,
+      maxLen,
+      charset: new Charset({ lower, upper, digits, symbols, custom }),
+      wordlist,
+    };
+  }
+
+  // Whenever the file or any ordering-relevant option changes, ask the backend
+  // (debounced) whether a resumable checkpoint exists for this exact setup.
+  $effect(() => {
+    // Touch every dependency so the effect re-runs when they change.
+    void [fileB64, format, mode, minLen, maxLen, lower, upper, digits, symbols, custom, wordlist];
+    if (resumeCheckTimer) clearTimeout(resumeCheckTimer);
+    if (!fileB64 || running) {
+      resumeTried = 0;
+      return;
+    }
+    resumeCheckTimer = setTimeout(async () => {
+      try {
+        const info = await SecurityService.Resumable(fileB64, fileName, buildOpts());
+        resumeTried = info.available ? info.tried : 0;
+      } catch {
+        resumeTried = 0;
+      }
+    }, 400);
+  });
+
   function toBase64(buf: Uint8Array): string {
     let binary = "";
     const chunk = 0x8000;
@@ -93,17 +129,10 @@
       error = "字典模式下请提供口令字典";
       return;
     }
-    const opts = {
-      format,
-      mode,
-      minLen,
-      maxLen,
-      charset: new Charset({ lower, upper, digits, symbols, custom }),
-      wordlist,
-    };
+    const opts = buildOpts();
     try {
       running = true;
-      jobId = await SecurityService.StartCrack(fileB64, fileName, opts);
+      jobId = await SecurityService.StartCrack(fileB64, fileName, opts, resume);
       progress = null;
       stopPolling();
       timer = setInterval(poll, 250);
@@ -225,6 +254,13 @@
         <button class="primary" onclick={start}>开始破解</button>
       {/if}
     </div>
+
+    {#if resumeTried > 0 && !running}
+      <label class="resume">
+        <input type="checkbox" bind:checked={resume} />
+        继续上次中断的进度（已尝试 {fmtNum(resumeTried)} 个候选）
+      </label>
+    {/if}
   </section>
 
   <ErrorBar message={error} />
@@ -232,6 +268,10 @@
   {#if progress}
     <section class="card">
       <h3>破解进度</h3>
+
+      {#if progress.resumedFrom > 0}
+        <div class="resumed">↻ 已从上次中断处继续，跳过 {fmtNum(progress.resumedFrom)} 个候选</div>
+      {/if}
 
       <div class="bar">
         <div
@@ -383,6 +423,20 @@
   .actions {
     display: flex;
     gap: 8px;
+  }
+  .resume {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    opacity: 0.85;
+  }
+  .resumed {
+    font-size: 13px;
+    color: var(--color-accent);
+    background: var(--color-accent-weak);
+    border-radius: var(--radius);
+    padding: 6px 10px;
   }
   .danger {
     background: var(--color-error, #e5484d);

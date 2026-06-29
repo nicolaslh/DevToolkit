@@ -85,17 +85,25 @@ type Options struct {
 
 // Progress is an immutable snapshot of a job's state, returned to the frontend.
 type Progress struct {
-	Tried    int64   `json:"tried"`
-	Total    int64   `json:"total"` // -1 when the space is unbounded/too large to count
-	Current  string  `json:"current"`
-	Found    bool    `json:"found"`
-	Password string  `json:"password"`
-	Done     bool    `json:"done"`
-	Canceled bool    `json:"canceled"`
-	Error    string  `json:"error"`
-	Elapsed  float64 `json:"elapsed"` // seconds
-	Rate     float64 `json:"rate"`    // attempts per second
-	ETA      float64 `json:"eta"`     // estimated seconds remaining; -1 when unknown
+	Tried       int64   `json:"tried"`
+	Total       int64   `json:"total"` // -1 when the space is unbounded/too large to count
+	Current     string  `json:"current"`
+	Found       bool    `json:"found"`
+	Password    string  `json:"password"`
+	Done        bool    `json:"done"`
+	Canceled    bool    `json:"canceled"`
+	Error       string  `json:"error"`
+	Elapsed     float64 `json:"elapsed"`     // seconds
+	Rate        float64 `json:"rate"`        // attempts per second
+	ETA         float64 `json:"eta"`         // estimated seconds remaining; -1 when unknown
+	ResumedFrom int64   `json:"resumedFrom"` // candidates skipped because the job resumed a checkpoint
+}
+
+// ResumeInfo describes a previously-saved checkpoint that a new job can continue.
+type ResumeInfo struct {
+	Available bool  `json:"available"`
+	Tried     int64 `json:"tried"`
+	Total     int64 `json:"total"`
 }
 
 // Verifier reports whether a candidate password opens the encrypted container.
@@ -136,16 +144,25 @@ type Job struct {
 
 	cancelCh   chan struct{}
 	cancelOnce sync.Once
+
+	resumedFrom int64
 }
 
 // Start launches the attack in a background goroutine and returns immediately.
-func Start(v Verifier, opts Options) *Job {
+// resumeFrom is the number of candidates already tried in a previous run; the
+// engine skips that many before resuming. Pass 0 to start from scratch.
+func Start(v Verifier, opts Options, resumeFrom int64) *Job {
+	if resumeFrom < 0 {
+		resumeFrom = 0
+	}
 	j := &Job{
-		start:    time.Now(),
-		cancelCh: make(chan struct{}),
+		start:       time.Now(),
+		cancelCh:    make(chan struct{}),
+		resumedFrom: resumeFrom,
 	}
 	j.total = countSpace(opts)
-	go j.run(v, opts)
+	j.tried.Store(resumeFrom)
+	go j.run(v, opts, resumeFrom)
 	return j
 }
 
@@ -184,17 +201,18 @@ func (j *Job) Snapshot() Progress {
 		eta = remaining / rate
 	}
 	return Progress{
-		Tried:    tried,
-		Total:    j.total,
-		Current:  j.current,
-		Found:    j.found,
-		Password: j.password,
-		Done:     j.done,
-		Canceled: j.canceled,
-		Error:    j.errMsg,
-		Elapsed:  elapsed,
-		Rate:     rate,
-		ETA:      eta,
+		Tried:       tried,
+		Total:       j.total,
+		Current:     j.current,
+		Found:       j.found,
+		Password:    j.password,
+		Done:        j.done,
+		Canceled:    j.canceled,
+		Error:       j.errMsg,
+		Elapsed:     elapsed,
+		Rate:        rate,
+		ETA:         eta,
+		ResumedFrom: j.resumedFrom,
 	}
 }
 
@@ -208,7 +226,7 @@ func (j *Job) finish(found bool, password, errMsg string, canceled bool) {
 	j.mu.Unlock()
 }
 
-func (j *Job) run(v Verifier, opts Options) {
+func (j *Job) run(v Verifier, opts Options, resumeFrom int64) {
 	hit := func(pw string) bool {
 		j.mu.Lock()
 		j.current = pw
@@ -223,9 +241,9 @@ func (j *Job) run(v Verifier, opts Options) {
 	)
 	switch opts.Mode {
 	case ModeDict:
-		found, pw = j.runDict(opts, hit)
+		found, pw = j.runDict(opts, resumeFrom, hit)
 	default:
-		found, pw = j.runBrute(opts, hit)
+		found, pw = j.runBrute(opts, resumeFrom, hit)
 	}
 
 	if j.stopped() && !found {
@@ -239,15 +257,21 @@ func (j *Job) run(v Verifier, opts Options) {
 	j.finish(false, "", "已尝试全部候选口令，未找到匹配项", false)
 }
 
-// runDict walks the wordlist line by line.
-func (j *Job) runDict(opts Options, hit func(string) bool) (bool, string) {
+// runDict walks the wordlist line by line, skipping the first `skip` candidates
+// so an interrupted run can continue where it stopped.
+func (j *Job) runDict(opts Options, skip int64, hit func(string) bool) (bool, string) {
+	var seen int64
 	for _, line := range strings.Split(opts.Wordlist, "\n") {
-		if j.stopped() {
-			return false, ""
-		}
 		pw := strings.TrimRight(line, "\r")
 		if pw == "" {
 			continue
+		}
+		if seen < skip {
+			seen++
+			continue
+		}
+		if j.stopped() {
+			return false, ""
 		}
 		if hit(pw) {
 			return true, pw
@@ -257,8 +281,9 @@ func (j *Job) runDict(opts Options, hit func(string) bool) (bool, string) {
 }
 
 // runBrute enumerates every combination of the alphabet for each length in the
-// configured range, shortest first.
-func (j *Job) runBrute(opts Options, hit func(string) bool) (bool, string) {
+// configured range, shortest first. When skip > 0 it jumps directly to the
+// matching position so an interrupted run can resume.
+func (j *Job) runBrute(opts Options, skip int64, hit func(string) bool) (bool, string) {
 	alphabet := []rune(opts.Charset.alphabet())
 	if len(alphabet) == 0 {
 		j.finish(false, "", "请至少选择一种字符集", false)
@@ -266,8 +291,17 @@ func (j *Job) runBrute(opts Options, hit func(string) bool) (bool, string) {
 	}
 	minLen, maxLen := normalizeLen(opts.MinLen, opts.MaxLen)
 
-	for length := minLen; length <= maxLen; length++ {
+	startLen, startIdx, ok := locate(skip, int64(len(alphabet)), minLen, maxLen)
+	if !ok {
+		// The skip offset is past the entire search space; nothing left to do.
+		return false, ""
+	}
+
+	for length := startLen; length <= maxLen; length++ {
 		idx := make([]int, length)
+		if length == startLen {
+			copy(idx, startIdx)
+		}
 		buf := make([]rune, length)
 		for {
 			if j.stopped() {
@@ -295,6 +329,48 @@ func (j *Job) runBrute(opts Options, hit func(string) bool) (bool, string) {
 		}
 	}
 	return false, ""
+}
+
+// locate maps a linear candidate offset to the (length, odometer) position
+// where brute-force enumeration should resume. ok is false when the offset is
+// beyond the whole search space.
+func locate(skip, base int64, minLen, maxLen int) (int, []int, bool) {
+	if skip < 0 {
+		skip = 0
+	}
+	remaining := skip
+	for length := minLen; length <= maxLen; length++ {
+		count, overflow := powGuard(base, length)
+		if overflow || remaining < count {
+			return length, decompose(remaining, base, length), true
+		}
+		remaining -= count
+	}
+	return 0, nil, false
+}
+
+// decompose writes index as a base-`base` number across `length` digits, with
+// position 0 holding the most-significant digit (matching the odometer order).
+func decompose(index, base int64, length int) []int {
+	idx := make([]int, length)
+	for i := length - 1; i >= 0; i-- {
+		idx[i] = int(index % base)
+		index /= base
+	}
+	return idx
+}
+
+// powGuard returns base**length, flagging overflow past ~2^62.
+func powGuard(base int64, length int) (int64, bool) {
+	const limit = int64(1) << 62
+	res := int64(1)
+	for i := 0; i < length; i++ {
+		res *= base
+		if res > limit {
+			return 0, true
+		}
+	}
+	return res, false
 }
 
 func normalizeLen(minLen, maxLen int) (int, int) {

@@ -64,15 +64,27 @@ export function GeneratePasswords(opts: pwdgen$0.Options): $CancellablePromise<s
 }
 
 /**
+ * Resumable reports whether a saved checkpoint exists for the given file and
+ * options, so the UI can offer to continue a previously interrupted run.
+ */
+export function Resumable(data: string, filename: string, opts: crackx$0.Options): $CancellablePromise<crackx$0.ResumeInfo> {
+    return $Call.ByID(3943579965, data, filename, opts).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * StartCrack begins an offline password-recovery job over the supplied file
  * bytes and returns a job id used to poll progress. The attack runs in the
- * background so the UI stays responsive.
+ * background so the UI stays responsive. When resume is true and a matching
+ * checkpoint exists, the job continues from where a previous run stopped.
  */
-export function StartCrack(data: string, filename: string, opts: crackx$0.Options): $CancellablePromise<string> {
-    return $Call.ByID(4202662565, data, filename, opts);
+export function StartCrack(data: string, filename: string, opts: crackx$0.Options, resume: boolean): $CancellablePromise<string> {
+    return $Call.ByID(4202662565, data, filename, opts, resume);
 }
 
 // Private type creation functions
 const $$createType0 = crackx$0.Progress.createFrom;
 const $$createType1 = jwtx$0.Result.createFrom;
 const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = crackx$0.ResumeInfo.createFrom;

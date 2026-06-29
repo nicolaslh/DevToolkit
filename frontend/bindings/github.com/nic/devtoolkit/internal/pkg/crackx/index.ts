@@ -6,5 +6,6 @@ export {
     Format,
     Mode,
     Options,
-    Progress
+    Progress,
+    ResumeInfo
 } from "./models.js";

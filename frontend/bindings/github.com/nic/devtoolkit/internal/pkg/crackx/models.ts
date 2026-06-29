@@ -187,6 +187,11 @@ export class Progress {
      */
     "eta": number;
 
+    /**
+     * candidates skipped because the job resumed a checkpoint
+     */
+    "resumedFrom": number;
+
     /** Creates a new Progress instance. */
     constructor($$source: Partial<Progress> = {}) {
         if (!("tried" in $$source)) {
@@ -222,6 +227,9 @@ export class Progress {
         if (!("eta" in $$source)) {
             this["eta"] = 0;
         }
+        if (!("resumedFrom" in $$source)) {
+            this["resumedFrom"] = 0;
+        }
 
         Object.assign(this, $$source);
     }
@@ -232,6 +240,38 @@ export class Progress {
     static createFrom($$source: any = {}): Progress {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new Progress($$parsedSource as Partial<Progress>);
+    }
+}
+
+/**
+ * ResumeInfo describes a previously-saved checkpoint that a new job can continue.
+ */
+export class ResumeInfo {
+    "available": boolean;
+    "tried": number;
+    "total": number;
+
+    /** Creates a new ResumeInfo instance. */
+    constructor($$source: Partial<ResumeInfo> = {}) {
+        if (!("available" in $$source)) {
+            this["available"] = false;
+        }
+        if (!("tried" in $$source)) {
+            this["tried"] = 0;
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ResumeInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ResumeInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ResumeInfo($$parsedSource as Partial<ResumeInfo>);
     }
 }
 

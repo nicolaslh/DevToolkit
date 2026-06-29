@@ -44,7 +44,7 @@ func TestPDFCrack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewVerifier: %v", err)
 	}
-	job := Start(v, Options{Mode: ModeBrute, MinLen: 2, MaxLen: 2, Charset: Charset{Lower: true, Digits: true}})
+	job := Start(v, Options{Mode: ModeBrute, MinLen: 2, MaxLen: 2, Charset: Charset{Lower: true, Digits: true}}, 0)
 	p := waitDone(t, job)
 	if !p.Found || p.Password != "x9" {
 		t.Fatalf("expected to crack x9, got %+v", p)
