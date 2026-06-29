@@ -2,50 +2,52 @@
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**轻量级、离线可用（优先保护隐私）的复合型辅助工具类软件**
+**轻量、离线、隐私优先的一体化开发者工具箱**
 
-DevToolkit 是一款桌面应用，整合了PC日常工作中的高频工具，涵盖文本处理、网络调试、系统运维、前端开发、安全验证等多个领域。所有工具默认本地执行，保护数据隐私。
+DevToolkit 是一款桌面应用，将日常开发中高频使用的工具集成到一处，涵盖文本处理、网络调试、系统运维、前端开发、安全验证等多个领域。所有工具默认在本地运行，无需联网即可使用，让你的数据始终留在自己手中。
+
+![DevToolkit 界面截图](screenshot.jpeg)
 
 ## 功能特性
 
 ### 一、文本与代码处理
 
-- **Diff Viewer** - 文本/代码/JSON 双栏比对，支持行级别和字符级别差异标注
+- **Diff Viewer** - 文本 / 代码 / JSON 双栏比对，支持行级与字符级差异高亮
 - **Regex Tester** - 正则表达式测试器，内置常用正则库（邮箱、手机号、身份证号、IPv4/IPv6）
 - **Mock Generator** - 批量生成随机模拟数据（姓名、地址、手机号、邮箱、银行卡号、Lorem Ipsum）
 
 ### 二、网络与接口
 
-- **URL Parser** - URL 拆解解析，可视化编辑查询参数
-- **cURL Converter** - cURL 命令转换为 Python/JavaScript/Go/Java 请求代码
+- **URL Parser** - URL 拆解解析，查询参数可视化编辑
+- **cURL Converter** - 将 cURL 命令转换为 Python / JavaScript / Go / Java 请求代码
 
 ### 三、系统运维
 
 - **Cron Tool** - Cron 表达式解析与生成，可视化配置定时任务
-- **Chmod Calculator** - Linux 权限计算器，数字权限与符号权限实时转换
-- **Env/Path Viewer** - 环境变量查看、去重、比较
+- **Chmod Calculator** - Linux 权限计算器，数字权限与符号权限实时互转
+- **Env/Path Viewer** - 环境变量查看、去重与比较
 
 ### 四、前端与视觉
 
-- **Color Converter** - 颜色值转换（HEX/RGB/RGBA/HSL）
-- **SVG Optimizer** - SVG 优化与预览
+- **Color Converter** - 颜色值转换（HEX / RGB / RGBA / HSL）
+- **SVG Optimizer** - SVG 优化与实时预览
 - **QR Code Tool** - 二维码生成与解码
 
 ### 五、安全与身份验证
 
 - **JWT Decoder** - JWT 解码与格式化，自动识别过期状态
-- **Password Generator** - 强密码生成器，支持批量生成和 Bcrypt 哈希
+- **Password Generator** - 强密码生成器，支持批量生成与 Bcrypt 哈希
 
 ### 六、编码与加解密
 
-- **Encoding Tool** - Base64/URL/Hex 编码转换
-- **Crypto Tool** - MD5/SHA-1/SHA-256 哈希计算，AES 对称加解密
+- **Encoding Tool** - Base64 / URL / Hex 编码互转
+- **Crypto Tool** - MD5 / SHA-1 / SHA-256 哈希计算，AES 对称加解密
 
 ## 技术栈
 
 - **后端**: Go + Wails v3
 - **前端**: TypeScript + Svelte + Vite
-- **桌面框架**: Wails v3 (跨平台)
+- **桌面框架**: Wails v3（跨平台）
 
 ## 快速开始
 
@@ -138,11 +140,11 @@ DevToolkit/
 
 ## 数据隐私
 
-DevToolkit 设计原则：
+DevToolkit 的设计原则：
 
-- ✅ 所有工具默认本地执行，不向外部传输用户数据
-- ✅ 无需网络连接即可使用大部分功能
-- ⚠️ 部分功能（HTTP 请求、IP 地理位置查询、DNS 解析）需要网络连接
+- ✅ 所有工具默认本地执行，不向外部传输任何用户数据
+- ✅ 大部分功能无需联网即可使用
+- ⚠️ 少数功能（HTTP 请求、IP 地理位置查询、DNS 解析）需要网络连接
 
 ## 开发指南
 
