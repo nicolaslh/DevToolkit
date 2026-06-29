@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/nic/devtoolkit/internal/pkg/colorx"
 	"github.com/nic/devtoolkit/internal/pkg/qrx"
+	"github.com/nic/devtoolkit/internal/pkg/screenpick"
 	"github.com/nic/devtoolkit/internal/pkg/svgopt"
 )
 
@@ -29,4 +30,17 @@ func (s *FrontendService) GenerateQR(text string, opts qrx.Options) (string, err
 // DecodeQR decodes a QR code from raw PNG/JPEG image bytes.
 func (s *FrontendService) DecodeQR(imageBytes []byte) (string, error) {
 	return qrx.Decode(imageBytes)
+}
+
+// PickColorAtCursor samples the color currently under the mouse cursor anywhere
+// on the desktop, returning all formats plus a zoomed region for the loupe.
+// region is the odd side length (px) of the magnifier sample.
+func (s *FrontendService) PickColorAtCursor(region int) (screenpick.Pick, error) {
+	return screenpick.AtCursor(region)
+}
+
+// EnsureScreenAccess reports whether screen capture can read other apps' windows.
+// On macOS it triggers the Screen Recording permission prompt when missing.
+func (s *FrontendService) EnsureScreenAccess() bool {
+	return screenpick.EnsureAccess()
 }

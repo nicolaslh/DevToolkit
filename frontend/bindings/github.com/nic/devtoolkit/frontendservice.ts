@@ -19,6 +19,9 @@ import * as colorx$0 from "./internal/pkg/colorx/models.js";
 import * as qrx$0 from "./internal/pkg/qrx/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as screenpick$0 from "./internal/pkg/screenpick/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as svgopt$0 from "./internal/pkg/svgopt/models.js";
 
 /**
@@ -39,6 +42,14 @@ export function DecodeQR(imageBytes: string): $CancellablePromise<string> {
 }
 
 /**
+ * EnsureScreenAccess reports whether screen capture can read other apps' windows.
+ * On macOS it triggers the Screen Recording permission prompt when missing.
+ */
+export function EnsureScreenAccess(): $CancellablePromise<boolean> {
+    return $Call.ByID(3577135209);
+}
+
+/**
  * GenerateQR returns a base64 PNG data URI for the given text.
  */
 export function GenerateQR(text: string, opts: qrx$0.Options): $CancellablePromise<string> {
@@ -54,6 +65,18 @@ export function OptimizeSVG(input: string): $CancellablePromise<svgopt$0.Result>
     });
 }
 
+/**
+ * PickColorAtCursor samples the color currently under the mouse cursor anywhere
+ * on the desktop, returning all formats plus a zoomed region for the loupe.
+ * region is the odd side length (px) of the magnifier sample.
+ */
+export function PickColorAtCursor(region: number): $CancellablePromise<screenpick$0.Pick> {
+    return $Call.ByID(1203781392, region).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = colorx$0.ColorSet.createFrom;
 const $$createType1 = svgopt$0.Result.createFrom;
+const $$createType2 = screenpick$0.Pick.createFrom;

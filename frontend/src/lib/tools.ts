@@ -6,6 +6,7 @@ import Jwt from "./tools/Jwt.svelte";
 import Password from "./tools/Password.svelte";
 import UrlParser from "./tools/UrlParser.svelte";
 import Color from "./tools/Color.svelte";
+import ColorPicker from "./tools/ColorPicker.svelte";
 import Diff from "./tools/Diff.svelte";
 import Regex from "./tools/Regex.svelte";
 import Cron from "./tools/Cron.svelte";
@@ -85,6 +86,14 @@ export const tools: ToolMeta[] = [
     category: "前端与视觉",
     icon: "🎨",
     component: Color,
+  },
+  {
+    id: "colorpicker",
+    name: "屏幕取色器",
+    description: "鼠标指向屏幕任意位置实时取色，输出 HEX / RGB / RGBA / HSL",
+    category: "前端与视觉",
+    icon: "💧",
+    component: ColorPicker,
   },
   {
     id: "diff",
