@@ -7,5 +7,8 @@ export {
     Mode,
     Options,
     Progress,
-    ResumeInfo
+    ResumeInfo,
+    ZipEncryption,
+    ZipEntryInfo,
+    ZipInfo
 } from "./models.js";

@@ -275,5 +275,117 @@ export class ResumeInfo {
     }
 }
 
+/**
+ * ZipEncryption identifies the scheme protecting a single ZIP entry.
+ */
+export enum ZipEncryption {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    ZipEncNone = "none",
+
+    /**
+     * ZipEncZipCrypto is traditional PKWARE (ZipCrypto) encryption. It is the
+     * only scheme vulnerable to the Biham–Kocher known-plaintext attack.
+     */
+    ZipEncZipCrypto = "zipcrypto",
+    ZipEncAES128 = "aes128",
+    ZipEncAES192 = "aes192",
+    ZipEncAES256 = "aes256",
+
+    /**
+     * ZipEncAESOther is a WinZip AES entry whose strength byte is unrecognized.
+     */
+    ZipEncAESOther = "aes",
+};
+
+/**
+ * ZipEntryInfo describes one entry's encryption.
+ */
+export class ZipEntryInfo {
+    "name": string;
+    "encrypted": boolean;
+    "encryption": ZipEncryption;
+
+    /** Creates a new ZipEntryInfo instance. */
+    constructor($$source: Partial<ZipEntryInfo> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("encrypted" in $$source)) {
+            this["encrypted"] = false;
+        }
+        if (!("encryption" in $$source)) {
+            this["encryption"] = ZipEncryption.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ZipEntryInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ZipEntryInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ZipEntryInfo($$parsedSource as Partial<ZipEntryInfo>);
+    }
+}
+
+/**
+ * ZipInfo summarizes the encryption used across a ZIP archive.
+ */
+export class ZipInfo {
+    "entries": ZipEntryInfo[];
+
+    /**
+     * at least one encrypted entry
+     */
+    "encrypted": boolean;
+
+    /**
+     * at least one ZipCrypto entry
+     */
+    "hasZipCrypto": boolean;
+
+    /**
+     * at least one AES entry
+     */
+    "hasAES": boolean;
+
+    /** Creates a new ZipInfo instance. */
+    constructor($$source: Partial<ZipInfo> = {}) {
+        if (!("entries" in $$source)) {
+            this["entries"] = [];
+        }
+        if (!("encrypted" in $$source)) {
+            this["encrypted"] = false;
+        }
+        if (!("hasZipCrypto" in $$source)) {
+            this["hasZipCrypto"] = false;
+        }
+        if (!("hasAES" in $$source)) {
+            this["hasAES"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ZipInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ZipInfo {
+        const $$createField0_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("entries" in $$parsedSource) {
+            $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
+        }
+        return new ZipInfo($$parsedSource as Partial<ZipInfo>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = Charset.createFrom;
+const $$createType1 = ZipEntryInfo.createFrom;
+const $$createType2 = $Create.Array($$createType1);

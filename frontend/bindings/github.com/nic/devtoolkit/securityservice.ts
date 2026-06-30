@@ -64,12 +64,24 @@ export function GeneratePasswords(opts: pwdgen$0.Options): $CancellablePromise<s
 }
 
 /**
+ * InspectZip reports the encryption scheme of each entry in a ZIP archive
+ * without a password. The frontend uses this to tell ZipCrypto (vulnerable to
+ * a known-plaintext attack) apart from AES (which is not) before offering an
+ * attack mode.
+ */
+export function InspectZip(data: string): $CancellablePromise<crackx$0.ZipInfo> {
+    return $Call.ByID(1883411132, data).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * Resumable reports whether a saved checkpoint exists for the given file and
  * options, so the UI can offer to continue a previously interrupted run.
  */
 export function Resumable(data: string, filename: string, opts: crackx$0.Options): $CancellablePromise<crackx$0.ResumeInfo> {
     return $Call.ByID(3943579965, data, filename, opts).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -87,4 +99,5 @@ export function StartCrack(data: string, filename: string, opts: crackx$0.Option
 const $$createType0 = crackx$0.Progress.createFrom;
 const $$createType1 = jwtx$0.Result.createFrom;
 const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = crackx$0.ResumeInfo.createFrom;
+const $$createType3 = crackx$0.ZipInfo.createFrom;
+const $$createType4 = crackx$0.ResumeInfo.createFrom;

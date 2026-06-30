@@ -35,6 +35,14 @@ func (s *SecurityService) BcryptHash(plain string) (string, error) {
 	return pwdgen.Bcrypt(plain)
 }
 
+// InspectZip reports the encryption scheme of each entry in a ZIP archive
+// without a password. The frontend uses this to tell ZipCrypto (vulnerable to
+// a known-plaintext attack) apart from AES (which is not) before offering an
+// attack mode.
+func (s *SecurityService) InspectZip(data []byte) (crackx.ZipInfo, error) {
+	return crackx.DetectZipEncryption(data)
+}
+
 // StartCrack begins an offline password-recovery job over the supplied file
 // bytes and returns a job id used to poll progress. The attack runs in the
 // background so the UI stays responsive. When resume is true and a matching
