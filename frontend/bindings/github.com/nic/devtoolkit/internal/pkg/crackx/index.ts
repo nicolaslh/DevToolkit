@@ -3,9 +3,14 @@
 
 export {
     Charset,
+    DecryptedEntry,
     Format,
+    KPAPhase,
+    KPAProgress,
     Mode,
     Options,
+    PasswordProgress,
+    PlaintextPrep,
     Progress,
     ResumeInfo,
     ZipEncryption,

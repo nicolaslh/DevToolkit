@@ -21,6 +21,7 @@ import Svg from "./tools/Svg.svelte";
 import Timestamp from "./tools/Timestamp.svelte";
 import ImageResize from "./tools/ImageResize.svelte";
 import Crack from "./tools/Crack.svelte";
+import ZipKpa from "./tools/ZipKpa.svelte";
 
 export interface ToolMeta {
   id: string;
@@ -88,6 +89,14 @@ export const tools: ToolMeta[] = [
     category: "安全与身份验证",
     icon: "🗝️",
     component: Crack,
+  },
+  {
+    id: "zipkpa",
+    name: "ZIP 已知明文攻击",
+    description: "对传统 ZipCrypto 加密包，利用已知的明文文件直接还原内部密钥并解密整包，无需知道密码（对 AES 无效）",
+    category: "安全与身份验证",
+    icon: "🧩",
+    component: ZipKpa,
   },
   {
     id: "url",

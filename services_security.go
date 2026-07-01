@@ -18,6 +18,12 @@ import (
 type SecurityService struct {
 	crackMu   sync.Mutex
 	crackJobs map[string]*crackx.Job
+
+	kpaMu   sync.Mutex
+	kpaJobs map[string]*crackx.KPAJob
+
+	pwMu   sync.Mutex
+	pwJobs map[string]*crackx.PasswordJob
 }
 
 // DecodeJWT decodes (without signature verification) and formats a JWT.
@@ -41,6 +47,129 @@ func (s *SecurityService) BcryptHash(plain string) (string, error) {
 // attack mode.
 func (s *SecurityService) InspectZip(data []byte) (crackx.ZipInfo, error) {
 	return crackx.DetectZipEncryption(data)
+}
+
+// PrepareKnownPlaintext turns a user-supplied original file into the known
+// plaintext the attack needs, verifying it via CRC-32 and, for Deflate entries,
+// re-compressing it to match the archive. The returned Plaintext (and Offset)
+// can be passed straight to StartKnownPlaintextAttack.
+func (s *SecurityService) PrepareKnownPlaintext(data []byte, entryName string, rawFile []byte) (crackx.PlaintextPrep, error) {
+	return crackx.PrepareKnownPlaintext(data, entryName, rawFile)
+}
+
+// StartKnownPlaintextAttack launches a Biham–Kocher known-plaintext attack
+// against a ZipCrypto entry. plaintext is the known (compressed) bytes of the
+// target entry starting at offset within its data. It returns a job id to poll
+// with KnownPlaintextProgress; on success the recovered keys decrypt every
+// ZipCrypto entry in the archive without the password. Only legacy ZipCrypto is
+// vulnerable — AES entries are rejected.
+func (s *SecurityService) StartKnownPlaintextAttack(data []byte, entryName string, plaintext []byte, offset int) (string, error) {
+	job, err := crackx.StartKPA(data, entryName, plaintext, offset, 0)
+	if err != nil {
+		return "", err
+	}
+	id, err := newJobID()
+	if err != nil {
+		return "", err
+	}
+	s.kpaMu.Lock()
+	if s.kpaJobs == nil {
+		s.kpaJobs = map[string]*crackx.KPAJob{}
+	}
+	s.kpaJobs[id] = job
+	s.kpaMu.Unlock()
+	return id, nil
+}
+
+// KnownPlaintextProgress returns the latest progress snapshot for a KPA job.
+func (s *SecurityService) KnownPlaintextProgress(id string) (crackx.KPAProgress, error) {
+	s.kpaMu.Lock()
+	job := s.kpaJobs[id]
+	s.kpaMu.Unlock()
+	if job == nil {
+		return crackx.KPAProgress{}, apperr.New(apperr.InvalidInput, "任务不存在或已结束")
+	}
+	return job.Snapshot(), nil
+}
+
+// KnownPlaintextResult returns the recovered keys and decrypted entries once a
+// KPA job has finished successfully.
+func (s *SecurityService) KnownPlaintextResult(id string) ([]crackx.DecryptedEntry, error) {
+	s.kpaMu.Lock()
+	job := s.kpaJobs[id]
+	s.kpaMu.Unlock()
+	if job == nil {
+		return nil, apperr.New(apperr.InvalidInput, "任务不存在或已结束")
+	}
+	_, entries, err := job.Result()
+	return entries, err
+}
+
+// CancelKnownPlaintextAttack stops a running KPA job and forgets it.
+func (s *SecurityService) CancelKnownPlaintextAttack(id string) error {
+	s.kpaMu.Lock()
+	job := s.kpaJobs[id]
+	delete(s.kpaJobs, id)
+	s.kpaMu.Unlock()
+	if job == nil {
+		return apperr.New(apperr.InvalidInput, "任务不存在或已结束")
+	}
+	job.Cancel()
+	return nil
+}
+
+// StartPasswordRecovery attempts to find a password that yields the keys
+// recovered by a finished known-plaintext attack (kpaId). Recovery is optional:
+// decryption already works with the keys alone. It returns a separate job id to
+// poll with PasswordRecoveryProgress.
+func (s *SecurityService) StartPasswordRecovery(kpaID string, charset crackx.Charset, minLen, maxLen int) (string, error) {
+	s.kpaMu.Lock()
+	kpaJob := s.kpaJobs[kpaID]
+	s.kpaMu.Unlock()
+	if kpaJob == nil {
+		return "", apperr.New(apperr.InvalidInput, "攻击任务不存在或已结束")
+	}
+	keys, ok := kpaJob.Keys()
+	if !ok {
+		return "", apperr.New(apperr.InvalidInput, "尚未还原出密钥，无法反推密码")
+	}
+
+	job := crackx.StartPasswordRecovery(keys, charset, minLen, maxLen)
+	id, err := newJobID()
+	if err != nil {
+		return "", err
+	}
+	s.pwMu.Lock()
+	if s.pwJobs == nil {
+		s.pwJobs = map[string]*crackx.PasswordJob{}
+	}
+	s.pwJobs[id] = job
+	s.pwMu.Unlock()
+	return id, nil
+}
+
+// PasswordRecoveryProgress returns the latest snapshot for a password-recovery job.
+func (s *SecurityService) PasswordRecoveryProgress(id string) (crackx.PasswordProgress, error) {
+	s.pwMu.Lock()
+	job := s.pwJobs[id]
+	s.pwMu.Unlock()
+	if job == nil {
+		return crackx.PasswordProgress{}, apperr.New(apperr.InvalidInput, "任务不存在或已结束")
+	}
+	return job.Snapshot(), nil
+}
+
+// CancelPasswordRecovery stops a running password-recovery job and forgets it.
+func (s *SecurityService) CancelPasswordRecovery(id string) error {
+	s.pwMu.Lock()
+	job := s.pwJobs[id]
+	delete(s.pwJobs, id)
+	s.pwMu.Unlock()
+	if job == nil {
+		return apperr.New(apperr.InvalidInput, "任务不存在或已结束")
+	}
+	job.Cancel()
+	return nil
 }
 
 // StartCrack begins an offline password-recovery job over the supplied file

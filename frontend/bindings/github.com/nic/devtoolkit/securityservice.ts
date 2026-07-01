@@ -37,6 +37,20 @@ export function CancelCrack(id: string): $CancellablePromise<void> {
 }
 
 /**
+ * CancelKnownPlaintextAttack stops a running KPA job and forgets it.
+ */
+export function CancelKnownPlaintextAttack(id: string): $CancellablePromise<void> {
+    return $Call.ByID(2995156487, id);
+}
+
+/**
+ * CancelPasswordRecovery stops a running password-recovery job and forgets it.
+ */
+export function CancelPasswordRecovery(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3849054191, id);
+}
+
+/**
  * CrackProgress returns the latest progress snapshot for a job.
  */
 export function CrackProgress(id: string): $CancellablePromise<crackx$0.Progress> {
@@ -76,12 +90,52 @@ export function InspectZip(data: string): $CancellablePromise<crackx$0.ZipInfo> 
 }
 
 /**
+ * KnownPlaintextProgress returns the latest progress snapshot for a KPA job.
+ */
+export function KnownPlaintextProgress(id: string): $CancellablePromise<crackx$0.KPAProgress> {
+    return $Call.ByID(1282061502, id).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
+ * KnownPlaintextResult returns the recovered keys and decrypted entries once a
+ * KPA job has finished successfully.
+ */
+export function KnownPlaintextResult(id: string): $CancellablePromise<crackx$0.DecryptedEntry[]> {
+    return $Call.ByID(2599254908, id).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
+ * PasswordRecoveryProgress returns the latest snapshot for a password-recovery job.
+ */
+export function PasswordRecoveryProgress(id: string): $CancellablePromise<crackx$0.PasswordProgress> {
+    return $Call.ByID(4112426158, id).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
+ * PrepareKnownPlaintext turns a user-supplied original file into the known
+ * plaintext the attack needs, verifying it via CRC-32 and, for Deflate entries,
+ * re-compressing it to match the archive. The returned Plaintext (and Offset)
+ * can be passed straight to StartKnownPlaintextAttack.
+ */
+export function PrepareKnownPlaintext(data: string, entryName: string, rawFile: string): $CancellablePromise<crackx$0.PlaintextPrep> {
+    return $Call.ByID(2455678504, data, entryName, rawFile).then(($result: any) => {
+        return $$createType8($result);
+    });
+}
+
+/**
  * Resumable reports whether a saved checkpoint exists for the given file and
  * options, so the UI can offer to continue a previously interrupted run.
  */
 export function Resumable(data: string, filename: string, opts: crackx$0.Options): $CancellablePromise<crackx$0.ResumeInfo> {
     return $Call.ByID(3943579965, data, filename, opts).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType9($result);
     });
 }
 
@@ -95,9 +149,36 @@ export function StartCrack(data: string, filename: string, opts: crackx$0.Option
     return $Call.ByID(4202662565, data, filename, opts, resume);
 }
 
+/**
+ * StartKnownPlaintextAttack launches a Biham–Kocher known-plaintext attack
+ * against a ZipCrypto entry. plaintext is the known (compressed) bytes of the
+ * target entry starting at offset within its data. It returns a job id to poll
+ * with KnownPlaintextProgress; on success the recovered keys decrypt every
+ * ZipCrypto entry in the archive without the password. Only legacy ZipCrypto is
+ * vulnerable — AES entries are rejected.
+ */
+export function StartKnownPlaintextAttack(data: string, entryName: string, plaintext: string, offset: number): $CancellablePromise<string> {
+    return $Call.ByID(2874865531, data, entryName, plaintext, offset);
+}
+
+/**
+ * StartPasswordRecovery attempts to find a password that yields the keys
+ * recovered by a finished known-plaintext attack (kpaId). Recovery is optional:
+ * decryption already works with the keys alone. It returns a separate job id to
+ * poll with PasswordRecoveryProgress.
+ */
+export function StartPasswordRecovery(kpaID: string, charset: crackx$0.Charset, minLen: number, maxLen: number): $CancellablePromise<string> {
+    return $Call.ByID(1117763315, kpaID, charset, minLen, maxLen);
+}
+
 // Private type creation functions
 const $$createType0 = crackx$0.Progress.createFrom;
 const $$createType1 = jwtx$0.Result.createFrom;
 const $$createType2 = $Create.Array($Create.Any);
 const $$createType3 = crackx$0.ZipInfo.createFrom;
-const $$createType4 = crackx$0.ResumeInfo.createFrom;
+const $$createType4 = crackx$0.KPAProgress.createFrom;
+const $$createType5 = crackx$0.DecryptedEntry.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = crackx$0.PasswordProgress.createFrom;
+const $$createType8 = crackx$0.PlaintextPrep.createFrom;
+const $$createType9 = crackx$0.ResumeInfo.createFrom;

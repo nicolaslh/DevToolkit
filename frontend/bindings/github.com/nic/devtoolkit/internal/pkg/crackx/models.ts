@@ -65,6 +65,38 @@ export class Charset {
 }
 
 /**
+ * DecryptedEntry is one decrypted file recovered from an archive.
+ */
+export class DecryptedEntry {
+    "name": string;
+    "content": string;
+
+    /** Creates a new DecryptedEntry instance. */
+    constructor($$source: Partial<DecryptedEntry> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DecryptedEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DecryptedEntry {
+        const $$createField1_0 = $Create.ByteSlice;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("content" in $$parsedSource) {
+            $$parsedSource["content"] = $$createField1_0($$parsedSource["content"]);
+        }
+        return new DecryptedEntry($$parsedSource as Partial<DecryptedEntry>);
+    }
+}
+
+/**
  * Format identifies the container type being attacked.
  */
 export enum Format {
@@ -82,6 +114,104 @@ export enum Format {
      */
     FormatOffice = "office",
 };
+
+/**
+ * KPAPhase identifies which stage a known-plaintext attack job is in.
+ */
+export enum KPAPhase {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    /**
+     * narrowing key2 candidates
+     */
+    KPAPhaseReducing = "reducing",
+
+    /**
+     * testing candidates for full keys
+     */
+    KPAPhaseAttacking = "attacking",
+
+    /**
+     * decrypting archive with recovered keys
+     */
+    KPAPhaseDecrypting = "decrypting",
+    KPAPhaseDone = "done",
+};
+
+/**
+ * KPAProgress is an immutable snapshot of a known-plaintext attack job.
+ */
+export class KPAProgress {
+    "phase": KPAPhase;
+    "done": number;
+    "total": number;
+
+    /**
+     * seconds
+     */
+    "elapsed": number;
+    "finished": boolean;
+    "found": boolean;
+
+    /**
+     * hex keys when found
+     */
+    "keys": string;
+
+    /**
+     * decrypted entries when finished
+     */
+    "fileCount": number;
+    "canceled": boolean;
+    "error": string;
+
+    /** Creates a new KPAProgress instance. */
+    constructor($$source: Partial<KPAProgress> = {}) {
+        if (!("phase" in $$source)) {
+            this["phase"] = KPAPhase.$zero;
+        }
+        if (!("done" in $$source)) {
+            this["done"] = 0;
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+        if (!("elapsed" in $$source)) {
+            this["elapsed"] = 0;
+        }
+        if (!("finished" in $$source)) {
+            this["finished"] = false;
+        }
+        if (!("found" in $$source)) {
+            this["found"] = false;
+        }
+        if (!("keys" in $$source)) {
+            this["keys"] = "";
+        }
+        if (!("fileCount" in $$source)) {
+            this["fileCount"] = 0;
+        }
+        if (!("canceled" in $$source)) {
+            this["canceled"] = false;
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new KPAProgress instance from a string or object.
+     */
+    static createFrom($$source: any = {}): KPAProgress {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new KPAProgress($$parsedSource as Partial<KPAProgress>);
+    }
+}
 
 /**
  * Mode selects the candidate-generation strategy.
@@ -152,6 +282,131 @@ export class Options {
             $$parsedSource["charset"] = $$createField4_0($$parsedSource["charset"]);
         }
         return new Options($$parsedSource as Partial<Options>);
+    }
+}
+
+/**
+ * PasswordProgress is a snapshot of a password-recovery job.
+ */
+export class PasswordProgress {
+    "currentLength": number;
+    "passwords": string[];
+    "elapsed": number;
+    "finished": boolean;
+    "canceled": boolean;
+
+    /** Creates a new PasswordProgress instance. */
+    constructor($$source: Partial<PasswordProgress> = {}) {
+        if (!("currentLength" in $$source)) {
+            this["currentLength"] = 0;
+        }
+        if (!("passwords" in $$source)) {
+            this["passwords"] = [];
+        }
+        if (!("elapsed" in $$source)) {
+            this["elapsed"] = 0;
+        }
+        if (!("finished" in $$source)) {
+            this["finished"] = false;
+        }
+        if (!("canceled" in $$source)) {
+            this["canceled"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PasswordProgress instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PasswordProgress {
+        const $$createField1_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("passwords" in $$parsedSource) {
+            $$parsedSource["passwords"] = $$createField1_0($$parsedSource["passwords"]);
+        }
+        return new PasswordProgress($$parsedSource as Partial<PasswordProgress>);
+    }
+}
+
+/**
+ * PlaintextPrep is the outcome of preparing known plaintext from an original
+ * file. Plaintext is the (compressed) bytes to feed the attack.
+ */
+export class PlaintextPrep {
+    "plaintext": string;
+    "offset": number;
+
+    /**
+     * 0 = Store, 8 = Deflate
+     */
+    "method": number;
+
+    /**
+     * true when the entry is uncompressed
+     */
+    "stored": boolean;
+
+    /**
+     * the original file's CRC-32 matches the entry
+     */
+    "crcMatch": boolean;
+
+    /**
+     * the (re)compressed length matches the entry
+     */
+    "lengthMatch": boolean;
+
+    /**
+     * safe to launch the attack directly
+     */
+    "ready": boolean;
+
+    /**
+     * human-readable guidance
+     */
+    "message": string;
+
+    /** Creates a new PlaintextPrep instance. */
+    constructor($$source: Partial<PlaintextPrep> = {}) {
+        if (!("plaintext" in $$source)) {
+            this["plaintext"] = "";
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+        if (!("method" in $$source)) {
+            this["method"] = 0;
+        }
+        if (!("stored" in $$source)) {
+            this["stored"] = false;
+        }
+        if (!("crcMatch" in $$source)) {
+            this["crcMatch"] = false;
+        }
+        if (!("lengthMatch" in $$source)) {
+            this["lengthMatch"] = false;
+        }
+        if (!("ready" in $$source)) {
+            this["ready"] = false;
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PlaintextPrep instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PlaintextPrep {
+        const $$createField0_0 = $Create.ByteSlice;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("plaintext" in $$parsedSource) {
+            $$parsedSource["plaintext"] = $$createField0_0($$parsedSource["plaintext"]);
+        }
+        return new PlaintextPrep($$parsedSource as Partial<PlaintextPrep>);
     }
 }
 
@@ -376,7 +631,7 @@ export class ZipInfo {
      * Creates a new ZipInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): ZipInfo {
-        const $$createField0_0 = $$createType2;
+        const $$createField0_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -387,5 +642,6 @@ export class ZipInfo {
 
 // Private type creation functions
 const $$createType0 = Charset.createFrom;
-const $$createType1 = ZipEntryInfo.createFrom;
-const $$createType2 = $Create.Array($$createType1);
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = ZipEntryInfo.createFrom;
+const $$createType3 = $Create.Array($$createType2);
