@@ -12,9 +12,11 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nic/devtoolkit/internal/pkg/apperr"
@@ -98,6 +100,123 @@ type ProbeResult struct {
 	Live bool `json:"live"`
 }
 
+// ffmpegExeName is the platform-specific binary name.
+func ffmpegExeName() string {
+	if runtime.GOOS == "windows" {
+		return "ffmpeg.exe"
+	}
+	return "ffmpeg"
+}
+
+// ffmpegSearchDirs lists directories to probe for ffmpeg beyond PATH. This is
+// essential on macOS: GUI apps launched from Finder/Dock/Applications do NOT
+// inherit the shell PATH, so Homebrew (/opt/homebrew, /usr/local) and MacPorts
+// locations are invisible to exec.LookPath and must be checked explicitly.
+func ffmpegSearchDirs() []string {
+	var dirs []string
+	// Alongside our own executable first, so a bundled ffmpeg wins.
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		dirs = append(dirs, exeDir, filepath.Join(exeDir, "..", "Resources"))
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		dirs = append(dirs,
+			"/opt/homebrew/bin", // Apple Silicon Homebrew
+			"/usr/local/bin",    // Intel Homebrew
+			"/opt/local/bin",    // MacPorts
+			"/usr/bin",
+		)
+	case "linux":
+		dirs = append(dirs, "/usr/bin", "/usr/local/bin", "/bin", "/snap/bin")
+	case "windows":
+		if la := os.Getenv("LOCALAPPDATA"); la != "" {
+			dirs = append(dirs, filepath.Join(la, "Microsoft", "WinGet", "Links"))
+		}
+		if pf := os.Getenv("ProgramFiles"); pf != "" {
+			dirs = append(dirs, filepath.Join(pf, "ffmpeg", "bin"))
+		}
+		dirs = append(dirs, `C:\ffmpeg\bin`)
+	}
+	return dirs
+}
+
+var (
+	loginDirsOnce sync.Once
+	loginDirs     []string
+)
+
+// cachedLoginShellDirs memoizes loginShellDirs for the app's lifetime. The
+// login shell's PATH doesn't change while the app runs, and spawning an
+// interactive shell is comparatively slow, so this runs at most once.
+func cachedLoginShellDirs() []string {
+	loginDirsOnce.Do(func() { loginDirs = loginShellDirs() })
+	return loginDirs
+}
+
+// loginShellDirs returns the PATH entries from the user's login shell. GUI apps
+// on macOS/Linux start with a minimal PATH; the interactive login shell loads
+// the full profile (.zprofile AND .zshrc, .bash_profile/.bashrc) where package
+// managers like Homebrew, MacPorts, asdf, nvm or conda add their bin dirs.
+// Empty on Windows or on failure.
+//
+// The PATH is wrapped in sentinels so shell-startup output (banners, echoes
+// from rc files) doesn't pollute the parsed value. Stdin is left nil (so it
+// reads from /dev/null and never blocks) and a timeout guards against hangs.
+func loginShellDirs() []string {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/sh"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+
+	const begin, end = "__DTK_PATH_BEGIN__", "__DTK_PATH_END__"
+	script := "printf '%s%s%s' " + begin + " \"$PATH\" " + end
+	// -i (interactive) sources .zshrc/.bashrc; -l (login) sources the profile.
+	out, err := exec.CommandContext(ctx, shell, "-ilc", script).Output()
+	if err != nil && len(out) == 0 {
+		return nil
+	}
+	s := string(out)
+	i := strings.Index(s, begin)
+	j := strings.Index(s, end)
+	if i < 0 || j < 0 || j < i {
+		return nil
+	}
+	pathValue := s[i+len(begin) : j]
+
+	var dirs []string
+	for _, d := range strings.Split(pathValue, string(os.PathListSeparator)) {
+		if d = strings.TrimSpace(d); d != "" {
+			dirs = append(dirs, d)
+		}
+	}
+	return dirs
+}
+
+// resolveFFmpeg returns the path to a usable ffmpeg binary, or "" when none is
+// found. It checks PATH first, then well-known install locations, then the
+// login shell's PATH — so a packaged GUI app (which lacks the shell PATH) can
+// still find a Homebrew/MacPorts/conda/custom install.
+func resolveFFmpeg() string {
+	if p, err := exec.LookPath("ffmpeg"); err == nil {
+		return p
+	}
+	name := ffmpegExeName()
+	dirs := append(ffmpegSearchDirs(), cachedLoginShellDirs()...)
+	for _, dir := range dirs {
+		cand := filepath.Join(dir, name)
+		if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+			return cand
+		}
+	}
+	return ""
+}
+
 // CheckFFmpeg locates the ffmpeg binary and reads its version banner. Install
 // guidance is filled in regardless of availability so the UI can show it.
 func CheckFFmpeg() FFmpegInfo {
@@ -107,8 +226,8 @@ func CheckFFmpeg() FFmpegInfo {
 		DownloadURL: "https://ffmpeg.org/download.html",
 	}
 
-	path, err := exec.LookPath("ffmpeg")
-	if err != nil {
+	path := resolveFFmpeg()
+	if path == "" {
 		base.Available = false
 		return base
 	}

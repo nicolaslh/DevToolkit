@@ -70,13 +70,14 @@ func Start(source, output string, opts Options, duration float64) (*Job, error) 
 	if !opts.Format.valid() {
 		return nil, apperr.Newf(apperr.Unsupported, "不支持的输出格式：%s", opts.Format)
 	}
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
+	ffmpegBin := resolveFFmpeg()
+	if ffmpegBin == "" {
 		return nil, apperr.New(apperr.Unsupported, "未检测到 ffmpeg，请先安装后重试")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	args := buildArgs(source, output, opts)
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	cmd := exec.CommandContext(ctx, ffmpegBin, args...)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
