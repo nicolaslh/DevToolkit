@@ -24,6 +24,7 @@ func main() {
 			application.NewService(&FrontendService{}),
 			application.NewService(&TextService{}),
 			application.NewService(&DevOpsService{}),
+			application.NewService(&MediaService{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

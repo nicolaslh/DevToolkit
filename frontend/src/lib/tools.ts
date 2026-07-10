@@ -22,6 +22,7 @@ import Timestamp from "./tools/Timestamp.svelte";
 import ImageResize from "./tools/ImageResize.svelte";
 import Crack from "./tools/Crack.svelte";
 import ZipKpa from "./tools/ZipKpa.svelte";
+import M3u8 from "./tools/M3u8.svelte";
 
 export interface ToolMeta {
   id: string;
@@ -217,5 +218,13 @@ export const tools: ToolMeta[] = [
     category: "前端与视觉",
     icon: "📐",
     component: ImageResize,
+  },
+  {
+    id: "m3u8",
+    name: "m3u8 转 MP4",
+    description: "将 m3u8 (HLS) 在线或本地流转换为 MP4 / MKV / MOV / TS，或提取 MP3 音频，基于本地 ffmpeg",
+    category: "前端与视觉",
+    icon: "🎬",
+    component: M3u8,
   },
 ];

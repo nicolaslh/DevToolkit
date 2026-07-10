@@ -4,6 +4,7 @@
 import * as CodecService from "./codecservice.js";
 import * as DevOpsService from "./devopsservice.js";
 import * as FrontendService from "./frontendservice.js";
+import * as MediaService from "./mediaservice.js";
 import * as NetworkService from "./networkservice.js";
 import * as SecurityService from "./securityservice.js";
 import * as TextService from "./textservice.js";
@@ -11,6 +12,7 @@ export {
     CodecService,
     DevOpsService,
     FrontendService,
+    MediaService,
     NetworkService,
     SecurityService,
     TextService

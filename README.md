@@ -37,6 +37,7 @@ DevToolkit 是一款桌面应用，将日常开发中高频使用的工具集成
 - **二维码** - 二维码生成与图片解码
 - **SVG 优化** - SVG 清理压缩与实时预览
 - **图片尺寸调整** - 调整图片尺寸，支持预设规格与自定义宽高
+- **m3u8 转 MP4** - 将 m3u8 (HLS) 在线或本地流批量转换为 MP4 / MKV / MOV / TS，或提取 MP3 音频，输出到指定文件夹并沿用来源名称、仅更改后缀（依赖本地 ffmpeg）
 
 ### 五、安全与身份验证
 
@@ -111,6 +112,7 @@ DevToolkit/
 │   ├── differ/             # 文本比对
 │   ├── dnsx/               # DNS 解析
 │   ├── jwtx/               # JWT 解码
+│   ├── mediax/             # m3u8 (HLS) 转 MP4/MKV/MOV/TS/MP3
 │   ├── mockgen/            # Mock 数据生成
 │   ├── pathx/              # PATH 变量处理
 │   ├── pwdgen/             # 密码生成
