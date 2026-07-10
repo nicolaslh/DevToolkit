@@ -71,12 +71,12 @@ export function ProbeM3U8(source: string): $CancellablePromise<mediax$0.ProbeRes
 }
 
 /**
- * StartBatchConvert converts several m3u8 sources into outputDir. Each output
- * reuses its source's base name with the target format's extension. It returns
- * a job id to poll with BatchProgress.
+ * StartBatchConvert converts several m3u8 sources into outputDir, up to
+ * concurrency at a time. Each output reuses its source's base name with the
+ * target format's extension. It returns a job id to poll with BatchProgress.
  */
-export function StartBatchConvert(sources: string[], outputDir: string, opts: mediax$0.Options): $CancellablePromise<string> {
-    return $Call.ByID(530643412, sources, outputDir, opts);
+export function StartBatchConvert(sources: string[], outputDir: string, opts: mediax$0.Options, concurrency: number): $CancellablePromise<string> {
+    return $Call.ByID(530643412, sources, outputDir, opts, concurrency);
 }
 
 // Private type creation functions

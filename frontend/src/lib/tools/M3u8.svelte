@@ -25,6 +25,7 @@
             os: "",
             installCmd: "",
             downloadURL: "https://ffmpeg.org/download.html",
+            hwEncoder: "",
           }),
       );
   }
@@ -41,6 +42,8 @@
   let outputDir = $state("");
   let format = $state<Container>(Container.MP4);
   let reEncode = $state(false);
+  let hwAccel = $state(true); // use hardware encoder when re-encoding, if available
+  let concurrency = $state(2); // number of files to convert in parallel
 
   // --- run state ---
   let jobId = $state("");
@@ -158,8 +161,8 @@
     }
     try {
       running = true;
-      const opts = new Options({ format, reEncode });
-      jobId = await MediaService.StartBatchConvert(sources, outputDir, opts);
+      const opts = new Options({ format, reEncode, hwAccel });
+      jobId = await MediaService.StartBatchConvert(sources, outputDir, opts, concurrency);
       stopPolling();
       timer = setInterval(poll, 400);
       poll();
@@ -291,7 +294,33 @@
         <input type="checkbox" bind:checked={reEncode} />
         重新编码为 H.264 / AAC（更慢，但兼容性更好；默认直接复制流，速度快）
       </label>
+
+      {#if reEncode}
+        <label class="check sub" class:disabled={!ffmpeg?.hwEncoder}>
+          <input
+            type="checkbox"
+            bind:checked={hwAccel}
+            disabled={!ffmpeg?.hwEncoder}
+          />
+          {#if ffmpeg?.hwEncoder}
+            硬件加速编码（{ffmpeg.hwEncoder}，速度更快且更省 CPU）
+          {:else}
+            硬件加速编码（未检测到可用硬件编码器，将使用 CPU 编码）
+          {/if}
+        </label>
+      {/if}
     {/if}
+
+    <div class="row">
+      <label for="m3-conc">并行数</label>
+      <select id="m3-conc" bind:value={concurrency}>
+        <option value={1}>1（依次转换）</option>
+        <option value={2}>2</option>
+        <option value={3}>3</option>
+        <option value={4}>4</option>
+      </select>
+      <span class="hint">同时转换的文件数，网络下载型任务并行收益最大</span>
+    </div>
 
     <div class="row">
       <input
@@ -326,6 +355,7 @@
         <h3>转换进度</h3>
         <span class="summary">
           {progress.completed}/{progress.total} 完成
+          {#if progress.running > 0}· {progress.running} 进行中{/if}
           {#if progress.failed > 0}· <span class="fail">{progress.failed} 失败</span>{/if}
         </span>
       </div>
@@ -341,8 +371,8 @@
       </div>
 
       <ul class="items">
-        {#each progress.items as it, i (it.output)}
-          <li class:running={progress.current === i && !it.done}>
+        {#each progress.items as it (it.output)}
+          <li class:running={it.started && !it.done}>
             <div class="item-top">
               <span class="mono name" title={it.output}>{it.name}</span>
               <span class="state">
@@ -350,7 +380,7 @@
                   ✅ 完成
                 {:else if it.done}
                   ❌ 失败
-                {:else if progress.current === i}
+                {:else if it.started}
                   {itemPercent(it.percent)}
                   {#if it.eta >= 0}· 剩 {fmtDuration(it.eta)}{/if}
                 {:else}
@@ -358,7 +388,7 @@
                 {/if}
               </span>
             </div>
-            {#if progress.current === i && !it.done}
+            {#if it.started && !it.done}
               <div class="mini-bar">
                 <div
                   class="mini-fill"
@@ -577,6 +607,17 @@
     gap: 8px;
     font-size: 13px;
     opacity: 0.85;
+  }
+  .check.sub {
+    margin-left: 24px;
+    font-size: 12px;
+  }
+  .check.disabled {
+    opacity: 0.5;
+  }
+  .hint {
+    font-size: 12px;
+    opacity: 0.6;
   }
   .actions {
     display: flex;

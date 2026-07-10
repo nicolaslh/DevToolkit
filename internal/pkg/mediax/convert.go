@@ -111,11 +111,26 @@ func Start(source, output string, opts Options, duration float64) (*Job, error) 
 
 // buildArgs assembles the ffmpeg argument list for the requested conversion.
 func buildArgs(source, output string, opts Options) []string {
-	args := []string{
-		"-y", // overwrite output
+	args := []string{"-y"} // overwrite output
+	if isRemote(source) {
+		// Reuse TCP connections and fetch segments over multiple/pipelined
+		// requests instead of one-at-a-time — a big speedup for HLS streams
+		// made of many small segments (the usual bottleneck in copy mode).
+		args = append(args,
+			"-http_persistent", "1",
+			"-http_multiple", "1",
+			// Recover from transient network drops instead of aborting, and don't
+			// stall forever on a dead segment — both waste conversion time.
+			"-reconnect", "1",
+			"-reconnect_streamed", "1",
+			"-reconnect_delay_max", "5",
+			"-rw_timeout", "15000000", // 15s I/O timeout (microseconds)
+		)
+	}
+	args = append(args,
 		"-protocol_whitelist", "file,http,https,tcp,tls,crypto",
 		"-i", source,
-	}
+	)
 
 	switch opts.Format {
 	case MP3:
@@ -123,7 +138,8 @@ func buildArgs(source, output string, opts Options) []string {
 		args = append(args, "-vn", "-c:a", "libmp3lame", "-q:a", "2")
 	default:
 		if opts.ReEncode {
-			args = append(args, "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac")
+			args = append(args, videoEncodeArgs(opts)...)
+			args = append(args, "-c:a", "aac")
 		} else {
 			args = append(args, "-c", "copy")
 			// TS segments typically carry ADTS AAC; MP4/MOV need it repackaged.

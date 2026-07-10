@@ -10,6 +10,10 @@ import (
 	"github.com/nic/devtoolkit/internal/pkg/apperr"
 )
 
+// maxConcurrency caps how many conversions may run at once, protecting against
+// oversubscribing CPU/network no matter what the caller requests.
+const maxConcurrency = 6
+
 // BatchItemStatus is the per-source state within a batch conversion.
 type BatchItemStatus struct {
 	Source string `json:"source"`
@@ -23,10 +27,13 @@ type BatchItemStatus struct {
 	// Speed is the current encoding speed relative to realtime (e.g. 12 = 12x).
 	Speed float64 `json:"speed"`
 	// ETA is the estimated seconds remaining for this item; -1 when unknown.
-	ETA     float64 `json:"eta"`
-	Done    bool    `json:"done"`
-	Success bool    `json:"success"`
-	Error   string  `json:"error"`
+	ETA float64 `json:"eta"`
+	// Started is true once the item's conversion has begun (it may run in
+	// parallel with others).
+	Started bool   `json:"started"`
+	Done    bool   `json:"done"`
+	Success bool   `json:"success"`
+	Error   string `json:"error"`
 }
 
 // BatchProgress is an immutable snapshot of a batch conversion.
@@ -35,7 +42,7 @@ type BatchProgress struct {
 	Completed int               `json:"completed"` // items finished (success or failure)
 	Succeeded int               `json:"succeeded"`
 	Failed    int               `json:"failed"`
-	Current   int               `json:"current"` // index of the running item, -1 when none
+	Running   int               `json:"running"` // items currently converting in parallel
 	Items     []BatchItemStatus `json:"items"`
 	// Percent is the overall progress 0-100. It is duration-weighted when every
 	// item's length is known, otherwise it falls back to a per-item count.
@@ -58,6 +65,7 @@ type batchItem struct {
 	duration  float64 // probed media length in seconds (0 when unknown)
 	processed float64 // seconds of media written so far
 	speed     float64 // encoding speed relative to realtime
+	started   bool
 	done      bool
 	success   bool
 	errMsg    string
@@ -66,6 +74,12 @@ type batchItem struct {
 func (it *batchItem) setDuration(d float64) {
 	it.mu.Lock()
 	it.duration = d
+	it.mu.Unlock()
+}
+
+func (it *batchItem) markStarted() {
+	it.mu.Lock()
+	it.started = true
 	it.mu.Unlock()
 }
 
@@ -94,8 +108,8 @@ func (it *batchItem) fail(msg string) {
 	it.mu.Unlock()
 }
 
-// eta estimates remaining seconds for this item from its speed and how much
-// media is left. Returns -1 when it can't be estimated. Caller holds it.mu.
+// etaLocked estimates remaining seconds for this item from its speed and how
+// much media is left. Returns -1 when it can't be estimated. Caller holds it.mu.
 func (it *batchItem) etaLocked() float64 {
 	if it.done || it.duration <= 0 || it.speed <= 0 {
 		return -1
@@ -120,6 +134,7 @@ func (it *batchItem) snapshot() (st BatchItemStatus, duration, processed, speed 
 		Duration: it.duration,
 		Speed:    it.speed,
 		ETA:      it.etaLocked(),
+		Started:  it.started,
 		Done:     it.done,
 		Success:  it.success,
 		Error:    it.errMsg,
@@ -127,16 +142,16 @@ func (it *batchItem) snapshot() (st BatchItemStatus, duration, processed, speed 
 	return st, it.duration, it.processed, it.speed
 }
 
-// BatchJob converts several m3u8 sources sequentially, writing each result into
-// a shared output directory. Output names reuse the source's base name with the
+// BatchJob converts several m3u8 sources into a shared output directory, up to
+// Concurrency at a time. Output names reuse the source's base name with the
 // target format's extension.
 type BatchJob struct {
-	items []*batchItem
-	opts  Options
-	start time.Time
+	items       []*batchItem
+	opts        Options
+	concurrency int
+	start       time.Time
 
 	mu       sync.Mutex
-	current  int
 	done     bool
 	canceled bool
 
@@ -144,12 +159,13 @@ type BatchJob struct {
 	cancelOnce sync.Once
 
 	runMu   sync.Mutex
-	running *Job
+	running map[*Job]struct{}
 }
 
 // StartBatch validates inputs, computes per-source output paths and launches a
-// sequential conversion in the background. It returns a job to poll.
-func StartBatch(sources []string, outputDir string, opts Options) (*BatchJob, error) {
+// concurrent conversion in the background. concurrency is clamped to
+// [1, maxConcurrency]; values <= 0 default to 2. It returns a job to poll.
+func StartBatch(sources []string, outputDir string, opts Options, concurrency int) (*BatchJob, error) {
 	outputDir = strings.TrimSpace(outputDir)
 	if outputDir == "" {
 		return nil, apperr.New(apperr.InvalidInput, "请选择输出文件夹")
@@ -168,6 +184,16 @@ func StartBatch(sources []string, outputDir string, opts Options) (*BatchJob, er
 		return nil, apperr.New(apperr.InvalidInput, "请至少添加一个 m3u8 地址或文件")
 	}
 
+	if concurrency <= 0 {
+		concurrency = 2
+	}
+	if concurrency > maxConcurrency {
+		concurrency = maxConcurrency
+	}
+	if concurrency > len(cleaned) {
+		concurrency = len(cleaned)
+	}
+
 	ext := opts.Format.Ext()
 	used := map[string]bool{}
 	items := make([]*batchItem, 0, len(cleaned))
@@ -182,43 +208,66 @@ func StartBatch(sources []string, outputDir string, opts Options) (*BatchJob, er
 	}
 
 	b := &BatchJob{
-		items:    items,
-		opts:     opts,
-		start:    time.Now(),
-		current:  -1,
-		cancelCh: make(chan struct{}),
+		items:       items,
+		opts:        opts,
+		concurrency: concurrency,
+		start:       time.Now(),
+		cancelCh:    make(chan struct{}),
+		running:     map[*Job]struct{}{},
 	}
 	go b.run()
 	return b, nil
 }
 
 func (b *BatchJob) run() {
-	// Probe every source's duration up front (best-effort) so the overall
-	// progress and ETA can be computed across the whole batch, not just the
-	// item currently converting.
-	for _, it := range b.items {
-		if b.stopped() {
-			break
-		}
+	// Probe every source's duration up front (in parallel, best-effort) so the
+	// overall progress and ETA span the whole batch, not just running items.
+	b.forEach(b.concurrency, func(it *batchItem) {
 		if res, err := Probe(it.source); err == nil {
 			it.setDuration(res.Duration)
 		}
-	}
+	})
 
-	for i, it := range b.items {
-		if b.stopped() {
-			break
-		}
-		b.setCurrent(i)
-		b.convertOne(it)
-	}
-	b.setCurrent(-1)
+	// Convert items with a bounded worker pool.
+	b.forEach(b.concurrency, b.convertOne)
+
 	b.mu.Lock()
 	b.done = true
 	b.mu.Unlock()
 }
 
+// forEach runs fn over every item using `workers` goroutines, stopping early
+// when the job is canceled.
+func (b *BatchJob) forEach(workers int, fn func(*batchItem)) {
+	if workers < 1 {
+		workers = 1
+	}
+	ch := make(chan *batchItem)
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for it := range ch {
+				if b.stopped() {
+					continue // drain remaining without work
+				}
+				fn(it)
+			}
+		}()
+	}
+	for _, it := range b.items {
+		if b.stopped() {
+			break
+		}
+		ch <- it
+	}
+	close(ch)
+	wg.Wait()
+}
+
 func (b *BatchJob) convertOne(it *batchItem) {
+	it.markStarted()
 	it.mu.Lock()
 	duration := it.duration
 	it.mu.Unlock()
@@ -228,8 +277,8 @@ func (b *BatchJob) convertOne(it *batchItem) {
 		it.fail(err.Error())
 		return
 	}
-	b.setRunning(job)
-	defer b.clearRunning()
+	b.addRunning(job)
+	defer b.removeRunning(job)
 
 	for {
 		if b.stopped() {
@@ -252,21 +301,15 @@ func (b *BatchJob) convertOne(it *batchItem) {
 	}
 }
 
-func (b *BatchJob) setCurrent(i int) {
-	b.mu.Lock()
-	b.current = i
-	b.mu.Unlock()
-}
-
-func (b *BatchJob) setRunning(j *Job) {
+func (b *BatchJob) addRunning(j *Job) {
 	b.runMu.Lock()
-	b.running = j
+	b.running[j] = struct{}{}
 	b.runMu.Unlock()
 }
 
-func (b *BatchJob) clearRunning() {
+func (b *BatchJob) removeRunning(j *Job) {
 	b.runMu.Lock()
-	b.running = nil
+	delete(b.running, j)
 	b.runMu.Unlock()
 }
 
@@ -279,7 +322,7 @@ func (b *BatchJob) stopped() bool {
 	}
 }
 
-// Cancel stops the batch and the item currently converting.
+// Cancel stops the batch and every item currently converting.
 func (b *BatchJob) Cancel() {
 	b.cancelOnce.Do(func() {
 		b.mu.Lock()
@@ -287,8 +330,8 @@ func (b *BatchJob) Cancel() {
 		b.mu.Unlock()
 		close(b.cancelCh)
 		b.runMu.Lock()
-		if b.running != nil {
-			b.running.Cancel()
+		for j := range b.running {
+			j.Cancel()
 		}
 		b.runMu.Unlock()
 	})
@@ -298,9 +341,9 @@ func (b *BatchJob) Cancel() {
 // and estimated time remaining.
 func (b *BatchJob) Snapshot() BatchProgress {
 	items := make([]BatchItemStatus, len(b.items))
-	completed, succeeded, failed := 0, 0, 0
+	completed, succeeded, failed, running := 0, 0, 0, 0
 
-	var totalDur, processedDur, curSpeed float64
+	var totalDur, processedDur, aggSpeed float64
 	allKnown := true // every item's duration is known → duration-weighted overall
 
 	for i, it := range b.items {
@@ -312,7 +355,8 @@ func (b *BatchJob) Snapshot() BatchProgress {
 		} else {
 			allKnown = false
 		}
-		if st.Done {
+		switch {
+		case st.Done:
 			completed++
 			if st.Success {
 				succeeded++
@@ -320,11 +364,10 @@ func (b *BatchJob) Snapshot() BatchProgress {
 			} else {
 				failed++
 			}
-		} else if !st.Done && proc > 0 {
-			processedDur += proc // partial progress of the running item
-			if speed > curSpeed {
-				curSpeed = speed
-			}
+		case st.Started:
+			running++
+			processedDur += proc // partial progress of a running item
+			aggSpeed += speed    // parallel items add throughput
 		}
 	}
 
@@ -344,14 +387,15 @@ func (b *BatchJob) Snapshot() BatchProgress {
 		percent = 100
 	}
 
-	// Overall ETA: only when all durations are known and something is encoding.
+	// Overall ETA: remaining media divided by the combined throughput of all
+	// items currently converting. Only when every duration is known.
 	eta := -1.0
-	if !b.done && allKnown && totalDur > 0 && curSpeed > 0 {
+	if !b.done && allKnown && totalDur > 0 && aggSpeed > 0 {
 		remaining := totalDur - processedDur
 		if remaining < 0 {
 			remaining = 0
 		}
-		eta = remaining / curSpeed
+		eta = remaining / aggSpeed
 	}
 
 	return BatchProgress{
@@ -359,7 +403,7 @@ func (b *BatchJob) Snapshot() BatchProgress {
 		Completed: completed,
 		Succeeded: succeeded,
 		Failed:    failed,
-		Current:   b.current,
+		Running:   running,
 		Items:     items,
 		Percent:   percent,
 		ETA:       eta,

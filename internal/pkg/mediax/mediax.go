@@ -36,6 +36,10 @@ type FFmpegInfo struct {
 	InstallCmd string `json:"installCmd"`
 	// DownloadURL points to the official ffmpeg download page as a fallback.
 	DownloadURL string `json:"downloadURL"`
+	// HWEncoder is the detected, validated hardware H.264 encoder (e.g.
+	// "h264_videotoolbox"); empty when none is usable. Only meaningful when
+	// Available is true. The UI uses it to offer hardware-accelerated encoding.
+	HWEncoder string `json:"hwEncoder"`
 }
 
 // installCmdFor returns the recommended install command for a given GOOS.
@@ -83,6 +87,10 @@ type Options struct {
 	// ReEncode transcodes to H.264/AAC instead of copying streams. Slower, but
 	// resolves codec/container incompatibilities. Ignored for audio-only output.
 	ReEncode bool `json:"reEncode"`
+	// HWAccel uses a hardware video encoder (VideoToolbox/NVENC/QSV/AMF) when
+	// re-encoding, which is much faster and offloads the CPU. Ignored unless
+	// ReEncode is set; falls back to software when no hardware encoder is usable.
+	HWAccel bool `json:"hwAccel"`
 }
 
 // ProbeResult summarizes an m3u8 playlist before conversion.
@@ -244,6 +252,9 @@ func CheckFFmpeg() FFmpegInfo {
 		} else {
 			info.Version = strings.TrimSpace(string(out))
 		}
+	}
+	if e := bestHWEncoder(); e != nil {
+		info.HWEncoder = e.Name
 	}
 	return info
 }

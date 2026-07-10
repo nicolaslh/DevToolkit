@@ -36,6 +36,12 @@ export class BatchItemStatus {
      * ETA is the estimated seconds remaining for this item; -1 when unknown.
      */
     "eta": number;
+
+    /**
+     * Started is true once the item's conversion has begun (it may run in
+     * parallel with others).
+     */
+    "started": boolean;
     "done": boolean;
     "success": boolean;
     "error": string;
@@ -62,6 +68,9 @@ export class BatchItemStatus {
         }
         if (!("eta" in $$source)) {
             this["eta"] = 0;
+        }
+        if (!("started" in $$source)) {
+            this["started"] = false;
         }
         if (!("done" in $$source)) {
             this["done"] = false;
@@ -99,9 +108,9 @@ export class BatchProgress {
     "failed": number;
 
     /**
-     * index of the running item, -1 when none
+     * items currently converting in parallel
      */
-    "current": number;
+    "running": number;
     "items": BatchItemStatus[];
 
     /**
@@ -136,8 +145,8 @@ export class BatchProgress {
         if (!("failed" in $$source)) {
             this["failed"] = 0;
         }
-        if (!("current" in $$source)) {
-            this["current"] = 0;
+        if (!("running" in $$source)) {
+            this["running"] = 0;
         }
         if (!("items" in $$source)) {
             this["items"] = [];
@@ -220,6 +229,13 @@ export class FFmpegInfo {
      */
     "downloadURL": string;
 
+    /**
+     * HWEncoder is the detected, validated hardware H.264 encoder (e.g.
+     * "h264_videotoolbox"); empty when none is usable. Only meaningful when
+     * Available is true. The UI uses it to offer hardware-accelerated encoding.
+     */
+    "hwEncoder": string;
+
     /** Creates a new FFmpegInfo instance. */
     constructor($$source: Partial<FFmpegInfo> = {}) {
         if (!("available" in $$source)) {
@@ -239,6 +255,9 @@ export class FFmpegInfo {
         }
         if (!("downloadURL" in $$source)) {
             this["downloadURL"] = "";
+        }
+        if (!("hwEncoder" in $$source)) {
+            this["hwEncoder"] = "";
         }
 
         Object.assign(this, $$source);
@@ -268,6 +287,13 @@ export class Options {
      */
     "reEncode": boolean;
 
+    /**
+     * HWAccel uses a hardware video encoder (VideoToolbox/NVENC/QSV/AMF) when
+     * re-encoding, which is much faster and offloads the CPU. Ignored unless
+     * ReEncode is set; falls back to software when no hardware encoder is usable.
+     */
+    "hwAccel": boolean;
+
     /** Creates a new Options instance. */
     constructor($$source: Partial<Options> = {}) {
         if (!("format" in $$source)) {
@@ -275,6 +301,9 @@ export class Options {
         }
         if (!("reEncode" in $$source)) {
             this["reEncode"] = false;
+        }
+        if (!("hwAccel" in $$source)) {
+            this["hwAccel"] = false;
         }
 
         Object.assign(this, $$source);

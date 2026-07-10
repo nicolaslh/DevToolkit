@@ -57,11 +57,11 @@ func (s *MediaService) PickOutputDir() (string, error) {
 	return path, nil
 }
 
-// StartBatchConvert converts several m3u8 sources into outputDir. Each output
-// reuses its source's base name with the target format's extension. It returns
-// a job id to poll with BatchProgress.
-func (s *MediaService) StartBatchConvert(sources []string, outputDir string, opts mediax.Options) (string, error) {
-	job, err := mediax.StartBatch(sources, outputDir, opts)
+// StartBatchConvert converts several m3u8 sources into outputDir, up to
+// concurrency at a time. Each output reuses its source's base name with the
+// target format's extension. It returns a job id to poll with BatchProgress.
+func (s *MediaService) StartBatchConvert(sources []string, outputDir string, opts mediax.Options, concurrency int) (string, error) {
+	job, err := mediax.StartBatch(sources, outputDir, opts, concurrency)
 	if err != nil {
 		return "", err
 	}
