@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -37,7 +38,8 @@ type Progress struct {
 
 // Job is a running or finished conversion.
 type Job struct {
-	output   string
+	output   string // final destination chosen by the user
+	tempOut  string // temp file ffmpeg writes to; moved to output on success
 	duration float64
 	start    time.Time
 
@@ -52,8 +54,13 @@ type Job struct {
 	canceled  bool
 	success   bool
 	errMsg    string
-	tail      []string // last few ffmpeg stderr lines, for diagnostics
+	exitErr   string   // ffmpeg's process exit error (e.g. "exit status 1")
+	logLines  []string // rolling ffmpeg log (stderr), for display + diagnostics
 }
+
+// maxLogLines caps the retained ffmpeg log so a long-running or chatty
+// conversion can't grow memory without bound.
+const maxLogLines = 500
 
 // Start validates options, builds the ffmpeg command and runs it in the
 // background. duration (from Probe) is optional; pass 0 when unknown to get an
@@ -75,9 +82,24 @@ func Start(source, output string, opts Options, duration float64) (*Job, error) 
 		return nil, apperr.New(apperr.Unsupported, "未检测到 ffmpeg，请先安装后重试")
 	}
 
+	// Write to a temp file first, then move it to the user's destination from
+	// the app process. A packaged macOS GUI app can grant itself access to
+	// TCC-protected folders (Desktop/Documents/Downloads), but the ffmpeg child
+	// process cannot — so letting ffmpeg write straight to such a folder can
+	// fail with "Operation not permitted". The temp dir is never protected.
+	tempOut, err := tempOutputPath(opts.Format.Ext())
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
-	args := buildArgs(source, output, opts)
+	args := buildArgs(source, tempOut, opts)
 	cmd := exec.CommandContext(ctx, ffmpegBin, args...)
+	// Run from a writable temp dir (a Finder-launched app's CWD is "/", which
+	// isn't writable) and give the child a usable PATH (the app inherits only a
+	// minimal PATH from launchd).
+	cmd.Dir = os.TempDir()
+	cmd.Env = augmentedEnv(ffmpegBin)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -98,6 +120,7 @@ func Start(source, output string, opts Options, duration float64) (*Job, error) 
 
 	j := &Job{
 		output:   output,
+		tempOut:  tempOut,
 		duration: duration,
 		start:    time.Now(),
 		cmd:      cmd,
@@ -151,8 +174,9 @@ func buildArgs(source, output string, opts Options) []string {
 
 	args = append(args,
 		"-progress", "pipe:1",
-		"-nostats",
-		"-loglevel", "error",
+		"-nostats", // suppress the per-frame stats spam (progress comes via pipe:1)
+		"-hide_banner",
+		"-loglevel", "info", // stream mapping + warnings/errors: a useful, non-noisy log
 		output,
 	)
 	return args
@@ -185,7 +209,7 @@ func (j *Job) readProgress(r io.Reader) {
 	}
 }
 
-// readStderr retains the last few error lines to explain a failure.
+// readStderr retains ffmpeg's log lines (bounded) for display and diagnostics.
 func (j *Job) readStderr(r io.Reader) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -195,38 +219,83 @@ func (j *Job) readStderr(r io.Reader) {
 			continue
 		}
 		j.mu.Lock()
-		j.tail = append(j.tail, line)
-		if len(j.tail) > 8 {
-			j.tail = j.tail[len(j.tail)-8:]
+		j.logLines = append(j.logLines, line)
+		if len(j.logLines) > maxLogLines {
+			j.logLines = j.logLines[len(j.logLines)-maxLogLines:]
 		}
 		j.mu.Unlock()
 	}
 }
 
-// wait blocks until ffmpeg exits and records the final outcome.
-func (j *Job) wait() {
-	err := j.cmd.Wait()
+// Log returns the retained ffmpeg output as a single string.
+func (j *Job) Log() string {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	j.done = true
-	if j.canceled {
+	return strings.Join(j.logLines, "\n")
+}
+
+// wait blocks until ffmpeg exits, moves the finished temp file to its
+// destination and records the final outcome.
+func (j *Job) wait() {
+	err := j.cmd.Wait()
+
+	if j.stoppedByCancel() {
+		_ = os.Remove(j.tempOut)
+		j.mu.Lock()
+		j.done = true
+		j.mu.Unlock()
 		return
 	}
+
 	if err != nil {
+		_ = os.Remove(j.tempOut)
+		j.mu.Lock()
+		j.exitErr = err.Error()
 		j.errMsg = j.failureMessage()
+		j.done = true
+		j.mu.Unlock()
 		return
 	}
+
+	// ffmpeg succeeded; move the temp file to the user's chosen destination.
+	// The app process does the move, so it works even for TCC-protected folders.
+	if moveErr := moveFile(j.tempOut, j.output); moveErr != nil {
+		_ = os.Remove(j.tempOut)
+		j.mu.Lock()
+		j.errMsg = "转换完成但无法写入目标文件夹：" + moveErr.Error()
+		j.done = true
+		j.mu.Unlock()
+		return
+	}
+
+	j.mu.Lock()
 	j.success = true
 	if j.duration > 0 {
 		j.processed = j.duration
 	}
+	j.done = true
+	j.mu.Unlock()
 }
 
-// failureMessage builds a user-facing error from the retained ffmpeg output.
+// stoppedByCancel reports whether the job was canceled by the user.
+func (j *Job) stoppedByCancel() bool {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return j.canceled
+}
+
+// failureMessage builds a user-facing error from the tail of the ffmpeg log.
 // Must be called with j.mu held.
 func (j *Job) failureMessage() string {
-	detail := strings.TrimSpace(strings.Join(j.tail, "；"))
+	tail := j.logLines
+	if len(tail) > 12 {
+		tail = tail[len(tail)-12:]
+	}
+	detail := strings.TrimSpace(strings.Join(tail, "；"))
 	if detail == "" {
+		if j.exitErr != "" {
+			return "转换失败（ffmpeg " + j.exitErr + "），请确认地址可访问、输出文件夹可写入"
+		}
 		return "转换失败，请检查地址或 ffmpeg 是否正常"
 	}
 	return "转换失败：" + detail

@@ -90,6 +90,18 @@ func (s *MediaService) BatchProgress(id string) (mediax.BatchProgress, error) {
 	return job.Snapshot(), nil
 }
 
+// BatchItemLog returns the ffmpeg output log captured for the given item within
+// a batch job, so the UI can display it (useful for diagnosing failures).
+func (s *MediaService) BatchItemLog(id string, index int) (string, error) {
+	s.batchMu.Lock()
+	job := s.batchJobs[id]
+	s.batchMu.Unlock()
+	if job == nil {
+		return "", apperr.New(apperr.InvalidInput, "任务不存在或已结束")
+	}
+	return job.ItemLog(index), nil
+}
+
 // CancelBatchConvert stops a running batch conversion and forgets it.
 func (s *MediaService) CancelBatchConvert(id string) error {
 	s.batchMu.Lock()

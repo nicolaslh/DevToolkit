@@ -18,6 +18,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as mediax$0 from "./internal/pkg/mediax/models.js";
 
 /**
+ * BatchItemLog returns the ffmpeg output log captured for the given item within
+ * a batch job, so the UI can display it (useful for diagnosing failures).
+ */
+export function BatchItemLog(id: string, index: number): $CancellablePromise<string> {
+    return $Call.ByID(1988326926, id, index);
+}
+
+/**
  * BatchProgress returns the latest snapshot for a batch conversion job.
  */
 export function BatchProgress(id: string): $CancellablePromise<mediax$0.BatchProgress> {

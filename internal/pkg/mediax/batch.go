@@ -69,12 +69,30 @@ type batchItem struct {
 	done      bool
 	success   bool
 	errMsg    string
+	job       *Job // the underlying conversion, kept so its log stays reachable
 }
 
 func (it *batchItem) setDuration(d float64) {
 	it.mu.Lock()
 	it.duration = d
 	it.mu.Unlock()
+}
+
+func (it *batchItem) setJob(j *Job) {
+	it.mu.Lock()
+	it.job = j
+	it.mu.Unlock()
+}
+
+// log returns the ffmpeg output captured for this item, or "" before it starts.
+func (it *batchItem) log() string {
+	it.mu.Lock()
+	j := it.job
+	it.mu.Unlock()
+	if j == nil {
+		return ""
+	}
+	return j.Log()
 }
 
 func (it *batchItem) markStarted() {
@@ -277,6 +295,7 @@ func (b *BatchJob) convertOne(it *batchItem) {
 		it.fail(err.Error())
 		return
 	}
+	it.setJob(job)
 	b.addRunning(job)
 	defer b.removeRunning(job)
 
@@ -335,6 +354,15 @@ func (b *BatchJob) Cancel() {
 		}
 		b.runMu.Unlock()
 	})
+}
+
+// ItemLog returns the captured ffmpeg log for the item at index, or "" if the
+// index is out of range or the item hasn't started yet.
+func (b *BatchJob) ItemLog(index int) string {
+	if index < 0 || index >= len(b.items) {
+		return ""
+	}
+	return b.items[index].log()
 }
 
 // Snapshot returns the current batch progress, including an overall percentage

@@ -52,6 +52,29 @@
   let error = $state("");
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  // --- ffmpeg log viewer ---
+  let openLog = $state<number | null>(null); // index of the item whose log is shown
+  let logText = $state("");
+
+  async function fetchLog(i: number) {
+    if (!jobId) return;
+    try {
+      logText = await MediaService.BatchItemLog(jobId, i);
+    } catch (e) {
+      logText = errMsg(e);
+    }
+  }
+
+  async function toggleLog(i: number) {
+    if (openLog === i) {
+      openLog = null;
+      logText = "";
+      return;
+    }
+    openLog = i;
+    await fetchLog(i);
+  }
+
   // Adds one or more network addresses from the URL box. Accepts multiple
   // entries separated by newlines, commas or spaces so a whole list can be
   // pasted at once. Only http(s) URLs are accepted; duplicates are ignored.
@@ -137,6 +160,7 @@
     try {
       const p = await MediaService.BatchProgress(jobId);
       progress = p;
+      if (openLog !== null) await fetchLog(openLog); // keep an open log live
       if (p.done) {
         running = false;
         stopPolling();
@@ -151,6 +175,8 @@
   async function start() {
     error = "";
     progress = null;
+    openLog = null;
+    logText = "";
     if (sources.length === 0) {
       error = "请至少添加一个 m3u8 地址或文件";
       return;
@@ -371,7 +397,7 @@
       </div>
 
       <ul class="items">
-        {#each progress.items as it (it.output)}
+        {#each progress.items as it, i (it.output)}
           <li class:running={it.started && !it.done}>
             <div class="item-top">
               <span class="mono name" title={it.output}>{it.name}</span>
@@ -386,6 +412,11 @@
                 {:else}
                   待处理
                 {/if}
+                {#if it.started}
+                  <button class="link log-btn" onclick={() => toggleLog(i)}>
+                    {openLog === i ? "收起日志" : "日志"}
+                  </button>
+                {/if}
               </span>
             </div>
             {#if it.started && !it.done}
@@ -399,6 +430,15 @@
             {/if}
             {#if it.done && !it.success && it.error}
               <div class="item-error">{it.error}</div>
+            {/if}
+            {#if openLog === i}
+              <div class="log-wrap">
+                <div class="log-head">
+                  <span>ffmpeg 日志</span>
+                  <Copy text={logText || ""} />
+                </div>
+                <pre class="log">{logText || "（暂无日志输出）"}</pre>
+              </div>
             {/if}
           </li>
         {/each}
@@ -729,6 +769,36 @@
     font-size: 12px;
     color: var(--color-error, #e5484d);
     word-break: break-all;
+  }
+  .log-btn {
+    margin-left: 8px;
+    font-size: 12px;
+  }
+  .log-wrap {
+    margin-top: 8px;
+  }
+  .log-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    opacity: 0.7;
+    margin-bottom: 4px;
+  }
+  .log {
+    margin: 0;
+    max-height: 220px;
+    overflow: auto;
+    padding: 8px 10px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--color-text);
   }
   .result {
     display: flex;
