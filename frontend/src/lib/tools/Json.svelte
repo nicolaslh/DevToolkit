@@ -152,25 +152,28 @@
 
     <div class="pane">
       <div class="pane-head">
-        <div class="view-switch" role="tablist" aria-label="结果视图">
-          <button
-            class="seg"
-            class:active={view === "tree"}
-            role="tab"
-            aria-selected={view === "tree"}
-            onclick={() => (view = "tree")}
-          >
-            树形
-          </button>
-          <button
-            class="seg"
-            class:active={view === "text"}
-            role="tab"
-            aria-selected={view === "text"}
-            onclick={() => (view = "text")}
-          >
-            文本
-          </button>
+        <div class="result-actions">
+          <div class="view-switch" role="tablist" aria-label="结果视图">
+            <button
+              class="seg"
+              class:active={view === "tree"}
+              role="tab"
+              aria-selected={view === "tree"}
+              onclick={() => (view = "tree")}
+            >
+              树形
+            </button>
+            <button
+              class="seg"
+              class:active={view === "text"}
+              role="tab"
+              aria-selected={view === "text"}
+              onclick={() => (view = "text")}
+            >
+              文本
+            </button>
+          </div>
+          <button class="compact-action" onclick={minify} disabled={!valid}>压缩</button>
         </div>
         <Copy text={pretty} />
       </div>
@@ -276,6 +279,12 @@
     white-space: pre;
   }
 
+  .result-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
   .view-switch {
     display: inline-flex;
     border: 1px solid var(--color-border);
@@ -292,5 +301,9 @@
   .seg.active {
     background: var(--color-accent);
     color: #fff;
+  }
+  .compact-action {
+    padding: 4px 10px;
+    font-size: 13px;
   }
 </style>
