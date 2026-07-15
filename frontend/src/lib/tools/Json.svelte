@@ -3,20 +3,56 @@
   import ErrorBar from "../components/ErrorBar.svelte";
   import JsonTree from "../components/JsonTree.svelte";
 
+  type ParseResult =
+    | { ok: true; value: unknown; usedHexEscapes: boolean }
+    | { ok: false; message: string };
+
+  function errorMessage(e: unknown) {
+    return e instanceof Error ? e.message : String(e);
+  }
+
+  function decodeHexEscapes(raw: string) {
+    return raw.replace(/(?:\\x[0-9a-fA-F]{2})+/g, (run) => {
+      const bytes = [...run.matchAll(/\\x([0-9a-fA-F]{2})/g)].map((m) =>
+        Number.parseInt(m[1], 16),
+      );
+
+      try {
+        return new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
+      } catch {
+        return String.fromCharCode(...bytes);
+      }
+    });
+  }
+
+  function parseJsonInput(raw: string): ParseResult {
+    try {
+      return { ok: true, value: JSON.parse(raw), usedHexEscapes: false };
+    } catch (e) {
+      if (!/\\x[0-9a-fA-F]{2}/.test(raw)) {
+        return { ok: false, message: errorMessage(e) };
+      }
+    }
+
+    try {
+      return { ok: true, value: JSON.parse(decodeHexEscapes(raw)), usedHexEscapes: true };
+    } catch (e) {
+      return { ok: false, message: errorMessage(e) };
+    }
+  }
+
   let input = $state("");
   let error = $state("");
   let indent = $state(2);
   let view = $state<"tree" | "text">("tree");
 
-  // Parsed value (null when invalid). Drives the tree view.
-  let parsed = $derived.by<unknown>(() => {
+  // Parsed value (undefined when invalid). Drives the tree view.
+  let parseResult = $derived.by<ParseResult | undefined>(() => {
     if (input.trim() === "") return undefined;
-    try {
-      return JSON.parse(input);
-    } catch {
-      return undefined;
-    }
+    return parseJsonInput(input);
   });
+  let parsed = $derived(parseResult?.ok ? parseResult.value : undefined);
+  let usedHexEscapes = $derived(parseResult?.ok === true ? parseResult.usedHexEscapes : false);
 
   // Validate on every change so the error bar stays in sync.
   $effect(() => {
@@ -24,12 +60,7 @@
       error = "";
       return;
     }
-    try {
-      JSON.parse(input);
-      error = "";
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
-    }
+    error = parseResult?.ok ? "" : (parseResult?.message ?? "");
   });
 
   // Pretty-printed text used by the text view and copy button.
@@ -57,16 +88,14 @@
   }
 
   function unescape() {
-    try {
-      const v = JSON.parse(input);
-      if (typeof v === "string") {
-        input = v;
-        error = "";
-      } else {
-        error = "去转义需要输入一个 JSON 字符串";
-      }
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+    const result = parseJsonInput(input);
+    if (result.ok && typeof result.value === "string") {
+      input = result.value;
+      error = "";
+    } else if (result.ok) {
+      error = "去转义需要输入一个 JSON 字符串";
+    } else {
+      error = result.message;
     }
   }
 
@@ -75,7 +104,7 @@
     error = "";
   }
 
-  let valid = $derived(input.trim() !== "" && parsed !== undefined);
+  let valid = $derived(input.trim() !== "" && parseResult?.ok === true);
 </script>
 
 <div class="tool">
@@ -103,6 +132,9 @@
   </div>
 
   <ErrorBar message={error} />
+  {#if usedHexEscapes}
+    <div class="parse-hint">已自动解码 \xNN 十六进制转义。</div>
+  {/if}
 
   <div class="panes">
     <div class="pane">
@@ -191,6 +223,11 @@
   }
   .status.bad {
     color: var(--color-error);
+  }
+  .parse-hint {
+    margin-top: -6px;
+    font-size: 12px;
+    color: var(--color-text-weak);
   }
 
   .panes {
