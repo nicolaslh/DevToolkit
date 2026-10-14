@@ -222,7 +222,7 @@ export const tools: ToolMeta[] = [
   {
     id: "m3u8",
     name: "m3u8 转 MP4",
-    description: "将 m3u8 (HLS) 在线或本地流转换为 MP4 / MKV / MOV / TS，或提取 MP3 音频，基于本地 ffmpeg",
+    description: "将 m3u8 (HLS) 在线或本地流转换为 MP4 / MKV / MOV / TS，或提取 MP3 / WAV 音频，基于本地 ffmpeg",
     category: "前端与视觉",
     icon: "🎬",
     component: M3u8,

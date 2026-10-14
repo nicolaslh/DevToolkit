@@ -65,6 +65,7 @@ const (
 	MOV Container = "mov"
 	TS  Container = "ts"
 	MP3 Container = "mp3" // audio-only extraction
+	WAV Container = "wav" // audio-only extraction, uncompressed PCM
 )
 
 // Ext returns the file extension (without dot) for the container.
@@ -73,7 +74,7 @@ func (c Container) Ext() string { return string(c) }
 // valid reports whether c is a supported container.
 func (c Container) valid() bool {
 	switch c {
-	case MP4, MKV, MOV, TS, MP3:
+	case MP4, MKV, MOV, TS, MP3, WAV:
 		return true
 	default:
 		return false
@@ -82,7 +83,7 @@ func (c Container) valid() bool {
 
 // Options configures a conversion job.
 type Options struct {
-	// Format is the target container (mp4/mkv/mov/ts/mp3).
+	// Format is the target container (mp4/mkv/mov/ts/mp3/wav).
 	Format Container `json:"format"`
 	// ReEncode transcodes to H.264/AAC instead of copying streams. Slower, but
 	// resolves codec/container incompatibilities. Ignored for audio-only output.

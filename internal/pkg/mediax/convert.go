@@ -159,6 +159,11 @@ func buildArgs(source, output string, opts Options) []string {
 	case MP3:
 		// Audio-only extraction always re-encodes to MP3.
 		args = append(args, "-vn", "-c:a", "libmp3lame", "-q:a", "2")
+	case WAV:
+		// Audio-only extraction to uncompressed PCM: mono, 16-bit, 48 kHz.
+		// Downmixing and resampling are done by ffmpeg's aresample filter,
+		// which the -ac/-ar flags configure implicitly.
+		args = append(args, "-vn", "-c:a", "pcm_s16le", "-ac", "1", "-ar", "48000")
 	default:
 		if opts.ReEncode {
 			args = append(args, videoEncodeArgs(opts)...)

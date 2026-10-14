@@ -45,6 +45,12 @@
   let hwAccel = $state(true); // use hardware encoder when re-encoding, if available
   let concurrency = $state(2); // number of files to convert in parallel
 
+  // Audio-only targets drop the video stream, so the video encode settings
+  // below don't apply to them.
+  const audioOnly = $derived(
+    format === Container.MP3 || format === Container.WAV,
+  );
+
   // --- run state ---
   let jobId = $state("");
   let running = $state(false);
@@ -312,10 +318,13 @@
         <option value={Container.MOV}>MOV</option>
         <option value={Container.TS}>TS</option>
         <option value={Container.MP3}>MP3（仅音频）</option>
+        <option value={Container.WAV}>
+          WAV（仅音频 · 单声道 / 16bit / 48kHz）
+        </option>
       </select>
     </div>
 
-    {#if format !== Container.MP3}
+    {#if !audioOnly}
       <label class="check">
         <input type="checkbox" bind:checked={reEncode} />
         重新编码为 H.264 / AAC（更慢，但兼容性更好；默认直接复制流，速度快）

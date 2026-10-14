@@ -201,6 +201,11 @@ export enum Container {
      * audio-only extraction
      */
     MP3 = "mp3",
+
+    /**
+     * audio-only extraction, uncompressed PCM
+     */
+    WAV = "wav",
 };
 
 /**
@@ -277,7 +282,7 @@ export class FFmpegInfo {
  */
 export class Options {
     /**
-     * Format is the target container (mp4/mkv/mov/ts/mp3).
+     * Format is the target container (mp4/mkv/mov/ts/mp3/wav).
      */
     "format": Container;
 
